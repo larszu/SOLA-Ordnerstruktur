@@ -17,7 +17,8 @@ automatisch per GitHub Actions (`.github/workflows/build.yml`) für jeden Tag `v
 | --- | --- |
 | macOS (Apple Silicon) | `SOLA-Ordnerstruktur-<version>-arm64.dmg` |
 | macOS (Intel) | `SOLA-Ordnerstruktur-<version>-x64.dmg` |
-| Windows | `SOLA-Ordnerstruktur-<version>-x64.exe` (Installer) oder die portable Variante |
+| Windows (Installer) | `SOLA-Ordnerstruktur-<version>-x64-Setup.exe` |
+| Windows (ohne Installation) | `SOLA-Ordnerstruktur-<version>-x64-portable.exe` |
 
 ### Hinweis zur ersten Ausführung
 

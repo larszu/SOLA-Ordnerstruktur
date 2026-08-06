@@ -48,13 +48,6 @@
             "arm64",
             "x64"
           ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
         }
       ],
       "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}.${ext}",
@@ -88,13 +81,17 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "SOLA Ordnerstruktur"
+      "shortcutName": "SOLA Ordnerstruktur",
+      "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}-Setup.${ext}"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
       "category": "Utility"
+    },
+    "portable": {
+      "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}-portable.${ext}"
     }
   }
 }
