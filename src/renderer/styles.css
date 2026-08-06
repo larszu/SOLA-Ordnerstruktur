@@ -1,0 +1,391 @@
+:root {
+  --bg: #f4f5f7;
+  --karte: #ffffff;
+  --rand: #dfe3e8;
+  --text: #1d2129;
+  --gedaempft: #61686f;
+  --akzent: #2f6f4f;
+  --akzent-hell: #e8f2ec;
+  --warnung: #8a5a00;
+  --warnung-hell: #fdf3e0;
+  --fehler: #a12a24;
+  --fehler-hell: #fbeceb;
+  --erfolg: #1f6b3f;
+  --erfolg-hell: #e7f4ec;
+  --radius: 10px;
+  --schrift: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1d21;
+    --karte: #24272c;
+    --rand: #383c43;
+    --text: #e9eaec;
+    --gedaempft: #a3a9b1;
+    --akzent: #6ab98d;
+    --akzent-hell: #23342b;
+    --warnung: #e0b060;
+    --warnung-hell: #33291a;
+    --fehler: #e98d87;
+    --fehler-hell: #33211f;
+    --erfolg: #7bc79b;
+    --erfolg-hell: #1e2f25;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--schrift);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Auf macOS ragt die Ampel in den Fensterkopf – Platz lassen und ziehbar machen. */
+.kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 34px 28px 18px;
+  background: var(--karte);
+  border-bottom: 1px solid var(--rand);
+  -webkit-app-region: drag;
+}
+
+.kopf button,
+.kopf input,
+.kopf a {
+  -webkit-app-region: no-drag;
+}
+
+.kopf h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.kopf-titel p {
+  margin: 4px 0 0;
+  color: var(--gedaempft);
+}
+
+.kopf-aktionen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.version {
+  color: var(--gedaempft);
+  font-size: 12px;
+  font-family: var(--mono);
+}
+
+main {
+  display: grid;
+  gap: 18px;
+  padding: 22px 28px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.karte {
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  padding: 18px 20px 20px;
+}
+
+.karte h2 {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gedaempft);
+}
+
+.zeile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zeile-umbruch {
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.knopf {
+  font: inherit;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 7px;
+  border: 1px solid var(--rand);
+  background: var(--karte);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.knopf:hover:not(:disabled) {
+  border-color: var(--akzent);
+}
+
+.knopf:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.knopf-primaer {
+  background: var(--akzent);
+  border-color: var(--akzent);
+  color: #fff;
+}
+
+.knopf-primaer:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.pfad {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--gedaempft);
+  background: var(--bg);
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  padding: 7px 10px;
+  overflow-wrap: anywhere;
+}
+
+.feld {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.feld > span,
+legend {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gedaempft);
+}
+
+.feld-schmal {
+  max-width: 240px;
+}
+
+input[type='text'],
+input[type='date'],
+select {
+  font: inherit;
+  padding: 7px 9px;
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  background: var(--karte);
+  color: var(--text);
+  color-scheme: light dark;
+}
+
+input:focus-visible,
+select:focus-visible,
+.knopf:focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 1px;
+}
+
+input.ungueltig {
+  border-color: var(--fehler);
+  background: var(--fehler-hell);
+}
+
+.feld-schmal input,
+.feld-schmal select {
+  width: 100%;
+}
+
+.solas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
+  gap: 18px;
+}
+
+.sola {
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.sola-kopf {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--rand);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sola-inhalt {
+  display: grid;
+  gap: 16px;
+  padding: 16px 14px;
+}
+
+.sola[data-aktiv='false'] .sola-inhalt {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+fieldset {
+  border: 1px solid var(--rand);
+  border-radius: 8px;
+  padding: 10px 12px 12px;
+  margin: 0;
+  min-width: 0;
+}
+
+.bereiche-liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 6px 12px;
+}
+
+.bereiche-liste label,
+.sola-kopf {
+  user-select: none;
+}
+
+.bereiche-liste label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.namen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.namen-liste {
+  display: grid;
+  gap: 5px;
+}
+
+.namen-liste input {
+  width: 100%;
+  font-size: 13px;
+  padding: 5px 8px;
+}
+
+.namen-spalte[data-frei='false'] {
+  opacity: 0.4;
+}
+
+.hinweis {
+  color: var(--gedaempft);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.mono {
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.meldungen {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.meldungen:empty {
+  margin-top: 0;
+}
+
+.meldung {
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  border: 1px solid transparent;
+  overflow-wrap: anywhere;
+}
+
+.meldung-warnung {
+  background: var(--warnung-hell);
+  border-color: var(--warnung);
+  color: var(--warnung);
+}
+
+.meldung-fehler {
+  background: var(--fehler-hell);
+  border-color: var(--fehler);
+  color: var(--fehler);
+}
+
+.meldung-erfolg {
+  background: var(--erfolg-hell);
+  border-color: var(--erfolg);
+  color: var(--erfolg);
+}
+
+.meldung button {
+  font: inherit;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.vorschau {
+  margin-top: 14px;
+  border: 1px solid var(--rand);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+}
+
+.vorschau summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.vorschau pre {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 340px;
+  overflow: auto;
+  margin: 10px 0 0;
+  color: var(--gedaempft);
+}
+
+.fuss {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 16px 28px 26px;
+  color: var(--gedaempft);
+  font-size: 12px;
+}
+
+.fuss a {
+  color: var(--akzent);
+}

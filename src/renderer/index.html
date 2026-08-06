@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:" />
+    <title>SOLA Ordnerstruktur</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="kopf">
+      <div class="kopf-titel">
+        <h1>SOLA Ordnerstruktur</h1>
+        <p>Ordnerstruktur für das Sola-Multimedia-Team anlegen — für macOS und Windows.</p>
+      </div>
+      <div class="kopf-aktionen">
+        <button type="button" id="btnLaden" class="knopf knopf-still">Konfiguration laden</button>
+        <button type="button" id="btnSpeichern" class="knopf knopf-still">Konfiguration speichern</button>
+        <span class="version" id="version"></span>
+      </div>
+    </header>
+
+    <main>
+      <section class="karte">
+        <h2>1 · Zielordner</h2>
+        <div class="zeile">
+          <button type="button" id="btnPfad" class="knopf">Ordner wählen …</button>
+          <code class="pfad" id="pfadAnzeige">Noch kein Ordner gewählt</code>
+        </div>
+        <label class="feld feld-schmal">
+          <span>Solajahr</span>
+          <input type="text" id="jahr" placeholder="automatisch aus dem Startdatum" inputmode="numeric" />
+        </label>
+      </section>
+
+      <section class="karte">
+        <h2>2 · Solas und Bereiche</h2>
+        <div class="solas" id="solas"><!-- wird aus renderer.js aufgebaut --></div>
+      </section>
+
+      <section class="karte">
+        <h2>3 · Ordnerstruktur anlegen</h2>
+        <div class="zeile zeile-umbruch">
+          <button type="button" id="btnVorschau" class="knopf knopf-still">Vorschau aktualisieren</button>
+          <button type="button" id="btnErstellen" class="knopf knopf-primaer" disabled>Ordnerstruktur erstellen</button>
+          <span class="hinweis" id="planInfo"></span>
+        </div>
+        <div class="meldungen" id="meldungen"></div>
+        <details class="vorschau" id="vorschauBox">
+          <summary>Vorschau <span id="vorschauAnzahl"></span></summary>
+          <pre id="vorschauBaum"></pre>
+        </details>
+      </section>
+
+      <section class="karte">
+        <h2>4 · Lightroom-Vorgaben installieren</h2>
+        <p class="hinweis">
+          Kopiert die drei Exportvorgaben und die beiden Entwicklungsvorgaben in den
+          Lightroom-Classic-Ordner und trägt Jahr, Sola und Kürzel in die Exportvorgaben ein.
+        </p>
+        <div class="zeile zeile-umbruch">
+          <label class="feld feld-schmal">
+            <span>Kürzel</span>
+            <input type="text" id="kuerzel" placeholder="z. B. M.U." />
+          </label>
+          <label class="feld feld-schmal">
+            <span>Sola</span>
+            <select id="presetSola">
+              <option value="Teens">Teens</option>
+              <option value="Kids">Kids</option>
+            </select>
+          </label>
+          <label class="feld feld-schmal">
+            <span>Jahr (2-stellig)</span>
+            <input type="text" id="presetJahr" inputmode="numeric" maxlength="2" />
+          </label>
+          <button type="button" id="btnPresets" class="knopf" disabled>Vorgaben installieren</button>
+        </div>
+        <div class="meldungen" id="presetMeldungen"></div>
+        <p class="hinweis mono" id="lrPfad"></p>
+      </section>
+    </main>
+
+    <footer class="fuss">
+      <span>Nachbau des Windows-Originals von Thorben Renfordt für macOS und Windows.</span>
+      <a href="#" data-link="https://github.com/TH0RB3Nger/SOLA_Ordnerstrucktur">Original-Projekt</a>
+      <a href="#" data-link="https://www.instagram.com/sola_wiedenest/">Sola Wiedenest</a>
+    </footer>
+
+    <template id="solaVorlage">
+      <article class="sola">
+        <label class="sola-kopf">
+          <input type="checkbox" class="sola-aktiv" />
+          <span class="sola-titel"></span>
+        </label>
+        <div class="sola-inhalt">
+          <label class="feld">
+            <span>Startdatum (Tag 1)</span>
+            <input type="date" class="sola-start" />
+          </label>
+          <fieldset class="bereiche">
+            <legend>Bereiche</legend>
+            <div class="bereiche-liste"></div>
+          </fieldset>
+          <div class="namen">
+            <fieldset class="namen-spalte" data-rolle="fotografen">
+              <legend>Fotograf:innen</legend>
+              <div class="namen-liste"></div>
+            </fieldset>
+            <fieldset class="namen-spalte" data-rolle="videografen">
+              <legend>Videograf:innen</legend>
+              <div class="namen-liste"></div>
+            </fieldset>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
