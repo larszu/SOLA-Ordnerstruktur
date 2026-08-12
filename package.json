@@ -1,0 +1,97 @@
+{
+  "name": "sola-ordnerstruktur",
+  "productName": "SOLA Ordnerstruktur",
+  "version": "1.0.0",
+  "description": "Legt die Ordnerstruktur für das Sola-Multimedia-Team an und installiert die Lightroom-Vorgaben — für macOS und Windows.",
+  "author": "Sola Multimedia Team",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/larszu/geklaute-ordnerstruktur-mac-.git"
+  },
+  "license": "MIT",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:all": "electron-builder --mac --win"
+  },
+  "devDependencies": {
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "de.sola.ordnerstruktur",
+    "productName": "SOLA Ordnerstruktur",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/presets",
+        "to": "presets"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}.${ext}",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "title": "SOLA Ordnerstruktur ${version}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "SOLA Ordnerstruktur",
+      "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}-Setup.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    },
+    "portable": {
+      "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}-portable.${ext}"
+    }
+  }
+}

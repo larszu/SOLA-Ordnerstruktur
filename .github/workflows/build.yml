@@ -1,0 +1,91 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  build:
+    name: ${{ matrix.name }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS (dmg, arm64 + x64)
+            plattform: mac
+            artefakt: mac
+          - os: windows-latest
+            name: Windows (Installer + portable)
+            plattform: win
+            artefakt: windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # electron-builder wird hier direkt aufgerufen, nicht über `npm run`:
+      # npm würde `--publish` als eigenes Flag schlucken und nur den Wert
+      # weiterreichen, den electron-builder dann als Build-Ziel liest.
+      #
+      # Ohne Signaturzertifikate entstehen unsignierte Pakete. Das ist gewollt –
+      # die Installationshinweise stehen in der README.
+      #
+      # Bei einem v*-Tag lädt electron-builder die Pakete selbst in einen
+      # GitHub-Release-Entwurf hoch. Das läuft am Artefaktspeicher vorbei, der
+      # ein eigenes Kontingent hat und für Releases nichts beiträgt.
+      - name: Pakete bauen
+        run: npx electron-builder --${{ matrix.plattform }} --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # Belegt im Log, dass der Build wirklich etwas produziert hat – unabhängig
+      # davon, ob der Upload danach durchgeht. `nullglob` ist nötig, weil je
+      # nach Plattform nur eines der beiden Muster zutrifft; ohne die Option
+      # würde `ls` über das unaufgelöste Muster stolpern.
+      - name: Gebaute Pakete auflisten
+        shell: bash
+        run: |
+          shopt -s nullglob
+          pakete=(dist/*.dmg dist/*.exe)
+          if [ ${#pakete[@]} -eq 0 ]; then
+            echo "Es wurde kein Paket gebaut."
+            exit 1
+          fi
+          ls -lh "${pakete[@]}"
+
+      # Die Artefakte sind nur zum Reinschauen in einen PR-Build gedacht; die
+      # Releases entstehen oben direkt. Ist das Artefaktkontingent des Kontos
+      # voll, soll das einen ansonsten grünen Build nicht rot färben – der
+      # Schritt wird dann als fehlgeschlagen angezeigt, der Job bleibt grün.
+      - name: Pakete als Artefakt ablegen
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: sola-ordnerstruktur-${{ matrix.artefakt }}
+          path: |
+            dist/*.dmg
+            dist/*.exe
+          if-no-files-found: error
+          retention-days: 14
