@@ -27,6 +27,14 @@ const BEHALTEN = process.argv.includes('--keep');
 const arbeitsordner = fs.mkdtempSync(path.join(os.tmpdir(), 'sola-smoke-'));
 process.env.SOLA_USER_PRESETS = path.join(arbeitsordner, 'presets');
 
+// Auf CI-Runnern gibt es keine GPU. Ohne Software-Rendering liefert
+// capturePage() dort nur einen UnknownVizError. Muss vor dem ready-Ereignis
+// stehen, also vor dem Laden des Hauptprozesses.
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('in-process-gpu');
+
 require(path.join(WURZEL, 'src', 'main', 'main.js'));
 
 const { buildPlan } = require(path.join(WURZEL, 'src', 'core', 'structure'));
@@ -59,10 +67,16 @@ async function screenshot(win, name, zuAbschnitt) {
     await win.webContents.executeJavaScript('window.scrollTo(0, 0)', true);
     await warten(200);
   }
-  const bild = await win.webContents.capturePage();
-  fs.mkdirSync(SCREENSHOTS, { recursive: true });
-  fs.writeFileSync(path.join(SCREENSHOTS, name), bild.toPNG());
-  console.log(`  bild ${name}`);
+  // Ein misslungener Screenshot darf die übrigen Prüfungen nicht verschlucken.
+  try {
+    const bild = await win.webContents.capturePage();
+    fs.mkdirSync(SCREENSHOTS, { recursive: true });
+    fs.writeFileSync(path.join(SCREENSHOTS, name), bild.toPNG());
+    console.log(`  bild ${name}`);
+  } catch (err) {
+    console.error(`  FEHL Screenshot ${name} — ${err.message}`);
+    fehler.push(`Screenshot ${name}`);
+  }
 }
 
 /** Zählt alle Ordner unterhalb eines Pfades. */
