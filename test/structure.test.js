@@ -64,11 +64,11 @@ test('Fotobereich legt acht Tage mit festen Unterordnern an', () => {
   const { ordner } = buildPlan(config({ bereiche: ['foto'] }));
   const basis = 'Sola_2026/01_Teens/01_Foto';
 
-  assert.ok(ordner.includes(`${basis}/Tag_1_13-06-2026`));
-  assert.ok(ordner.includes(`${basis}/Tag_8_20-06-2026`));
-  assert.ok(!ordner.includes(`${basis}/Tag_9_21-06-2026`));
+  assert.ok(ordner.includes(`${basis}/1_Tag_13-06-2026`));
+  assert.ok(ordner.includes(`${basis}/8_Tag_20-06-2026`));
+  assert.ok(!ordner.includes(`${basis}/9_Tag_21-06-2026`));
 
-  const tag1 = `${basis}/Tag_1_13-06-2026`;
+  const tag1 = `${basis}/1_Tag_13-06-2026`;
   assert.ok(ordner.includes(`${tag1}/01_Bilder_des_Tages_1_HQ`));
   assert.ok(ordner.includes(`${tag1}/02_Bilder_des_Tages_1_LQ`));
   assert.ok(ordner.includes(`${tag1}/03_Auswahl Bilderclip`));
@@ -76,9 +76,31 @@ test('Fotobereich legt acht Tage mit festen Unterordnern an', () => {
   assert.ok(ordner.includes(`${basis}/LR Kataloge`));
 });
 
+test('Tagesordner sortieren nach Tag und stehen vor "LR Kataloge"', () => {
+  const { ordner } = buildPlan(config({ bereiche: ['foto'] }));
+  const basis = 'Sola_2026/01_Teens/01_Foto';
+  const kinder = ordner
+    .filter((p) => p.startsWith(`${basis}/`) && p.split('/').length === 4)
+    .map((p) => p.split('/')[3]);
+
+  // So, wie Finder und Explorer die Einträge anzeigen.
+  const sortiert = [...kinder].sort((a, b) => a.localeCompare(b, 'de'));
+  assert.deepEqual(sortiert, [
+    '1_Tag_13-06-2026',
+    '2_Tag_14-06-2026',
+    '3_Tag_15-06-2026',
+    '4_Tag_16-06-2026',
+    '5_Tag_17-06-2026',
+    '6_Tag_18-06-2026',
+    '7_Tag_19-06-2026',
+    '8_Tag_20-06-2026',
+    'LR Kataloge',
+  ]);
+});
+
 test('Personenordner setzen die Nummerierung fort und bekommen Unterordner', () => {
   const { ordner } = buildPlan(config({ bereiche: ['foto'], fotografen: ['Lars', 'Maja'] }));
-  const tag1 = 'Sola_2026/01_Teens/01_Foto/Tag_1_13-06-2026';
+  const tag1 = 'Sola_2026/01_Teens/01_Foto/1_Tag_13-06-2026';
 
   assert.ok(ordner.includes(`${tag1}/05_Lars`));
   assert.ok(ordner.includes(`${tag1}/06_Maja`));
@@ -92,7 +114,7 @@ test('Personenordner setzen die Nummerierung fort und bekommen Unterordner', () 
 
 test('Videograf:innen landen unter 01_Rohvideos', () => {
   const { ordner } = buildPlan(config({ bereiche: ['video'], videografen: ['Jonas'] }));
-  const tag3 = 'Sola_2026/01_Teens/01_Video/Tag_3_15-06-2026';
+  const tag3 = 'Sola_2026/01_Teens/01_Video/3_Tag_15-06-2026';
   assert.ok(ordner.includes(`${tag3}/01_Rohvideos`));
   assert.ok(ordner.includes(`${tag3}/02_Projektdatein`));
   assert.ok(ordner.includes(`${tag3}/03_Audio-Musik`));
@@ -101,8 +123,8 @@ test('Videograf:innen landen unter 01_Rohvideos', () => {
 
 test('Showfiles und Audio bekommen nur Tagesordner', () => {
   const { ordner } = buildPlan(config({ bereiche: ['showfiles', 'audio'] }));
-  assert.ok(ordner.includes('Sola_2026/01_Teens/01_Showfiles/Tag_1_13-06-2026'));
-  assert.ok(ordner.includes('Sola_2026/01_Teens/02_Audio/Tag_8_20-06-2026'));
+  assert.ok(ordner.includes('Sola_2026/01_Teens/01_Showfiles/1_Tag_13-06-2026'));
+  assert.ok(ordner.includes('Sola_2026/01_Teens/02_Audio/8_Tag_20-06-2026'));
   assert.equal(ordner.filter((p) => p.startsWith('Sola_2026/01_Teens/01_Showfiles/')).length, 8);
 });
 
@@ -125,8 +147,8 @@ test('Teens und Kids können unterschiedliche Startdaten haben', () => {
   c.kids.bereiche.showfiles = true;
 
   const { ordner } = buildPlan(c);
-  assert.ok(ordner.includes('Sola_2026/01_Teens/01_Showfiles/Tag_1_13-06-2026'));
-  assert.ok(ordner.includes('Sola_2026/02_Kids/01_Showfiles/Tag_1_01-08-2026'));
+  assert.ok(ordner.includes('Sola_2026/01_Teens/01_Showfiles/1_Tag_13-06-2026'));
+  assert.ok(ordner.includes('Sola_2026/02_Kids/01_Showfiles/1_Tag_01-08-2026'));
 });
 
 test('Namenslücken werden geschlossen', () => {
@@ -137,7 +159,7 @@ test('Namenslücken werden geschlossen', () => {
   c.teens.fotografen = ['', 'Maja', '', 'Lars', '', '', '', '', '', ''];
 
   const { ordner } = buildPlan(c);
-  const tag1 = 'Sola_2026/01_Teens/01_Foto/Tag_1_13-06-2026';
+  const tag1 = 'Sola_2026/01_Teens/01_Foto/1_Tag_13-06-2026';
   assert.ok(ordner.includes(`${tag1}/05_Maja`));
   assert.ok(ordner.includes(`${tag1}/06_Lars`));
   assert.ok(!ordner.some((p) => /\/07_/.test(p)));
@@ -145,7 +167,7 @@ test('Namenslücken werden geschlossen', () => {
 
 test('Namen mit Pfadtrennern oder Doppelpunkt werden entschärft', () => {
   const { ordner } = buildPlan(config({ bereiche: ['foto'], fotografen: ['A/B:C'] }));
-  assert.ok(ordner.includes('Sola_2026/01_Teens/01_Foto/Tag_1_13-06-2026/05_A_B_C'));
+  assert.ok(ordner.includes('Sola_2026/01_Teens/01_Foto/1_Tag_13-06-2026/05_A_B_C'));
   // Kein Segment darf einen Backslash oder Doppelpunkt enthalten.
   for (const pfad of ordner) {
     for (const segment of pfad.split('/')) {

@@ -54,8 +54,8 @@
       <section class="karte">
         <h2>4 · Lightroom-Vorgaben installieren</h2>
         <p class="hinweis">
-          Kopiert die drei Exportvorgaben und die beiden Entwicklungsvorgaben in den
-          Lightroom-Classic-Ordner und trägt Jahr, Sola und Kürzel in die Exportvorgaben ein.
+          Kopiert alle angewählten Vorgaben in den Lightroom-Classic-Ordner und trägt Jahr, Sola
+          und Kürzel in die Exportvorgaben ein. Lightroom danach neu starten.
         </p>
         <div class="zeile zeile-umbruch">
           <label class="feld feld-schmal">
@@ -76,6 +76,37 @@
           <button type="button" id="btnPresets" class="knopf" disabled>Vorgaben installieren</button>
         </div>
         <div class="meldungen" id="presetMeldungen"></div>
+
+        <div class="vorgaben">
+          <div class="vorgaben-kopf">
+            <h3>Verfügbare Vorgaben</h3>
+            <div class="vorgaben-aktionen">
+              <button type="button" id="btnPresetAdd" class="knopf">Vorgabe hinzufügen …</button>
+              <button type="button" id="btnPresetReset" class="knopf knopf-still">Zurücksetzen</button>
+              <button type="button" id="btnPresetOrdner" class="knopf knopf-still">Ordner öffnen</button>
+            </div>
+          </div>
+          <p class="hinweis">
+            Eigene <code>.lrtemplate</code>- und <code>.xmp</code>-Dateien lassen sich hier hinzufügen. Eine eigene
+            Datei mit demselben Namen ersetzt die mitgelieferte; nach dem Entfernen greift wieder die mitgelieferte.
+          </p>
+          <div class="tabelle-scroll">
+            <table class="vorgaben-tabelle">
+              <thead>
+                <tr>
+                  <th class="spalte-aktiv">Aktiv</th>
+                  <th>Datei</th>
+                  <th>Typ</th>
+                  <th>Quelle</th>
+                  <th>Bezeichnung / Kurzform</th>
+                  <th class="spalte-aktion"></th>
+                </tr>
+              </thead>
+              <tbody id="vorgabenListe"></tbody>
+            </table>
+          </div>
+        </div>
+
         <p class="hinweis mono" id="lrPfad"></p>
       </section>
     </main>

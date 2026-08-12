@@ -8,6 +8,23 @@ Das ist ein Nachbau von
 (VB.NET / WinForms, nur Windows) als Electron-App, damit dasselbe Programm auf
 beiden Plattformen läuft.
 
+## Die App
+
+| | |
+| --- | --- |
+| ![Startzustand](docs/screenshots/01-start.png) | ![Ausgefüllt mit Vorschau](docs/screenshots/02-ausgefuellt.png) |
+| Startzustand | Ausgefüllt, mit Vorschau des Baums |
+| ![Ordnerstruktur angelegt](docs/screenshots/03-erstellt.png) | ![Verwaltung der Vorgaben](docs/screenshots/04-vorgaben.png) |
+| Angelegt — Vorschau und Ergebnis stimmen überein | Verwaltung der Lightroom-Vorgaben |
+
+Die Oberfläche passt sich der Fensterbreite an; unter 900 px stehen die beiden Solas
+untereinander, unter 620 px auch die Namensspalten:
+
+<img src="docs/screenshots/05-schmal.png" alt="Schmales Fenster" width="380">
+
+Die Bilder entstehen beim Headless-Durchlauf (`npm run smoke`) und sind damit immer
+der tatsächliche Stand der App.
+
 ## Installation
 
 Fertige Pakete liegen unter [Releases](../../releases). Die Dateien entstehen
@@ -56,7 +73,7 @@ noch einmal starten — der bestehende Inhalt bleibt unangetastet.
 Sola_2026/
 ├── 01_Teens/
 │   ├── 01_Foto/
-│   │   ├── Tag_1_13-06-2026/
+│   │   ├── 1_Tag_13-06-2026/
 │   │   │   ├── 01_Bilder_des_Tages_1_HQ/
 │   │   │   ├── 02_Bilder_des_Tages_1_LQ/
 │   │   │   ├── 03_Auswahl Bilderclip/
@@ -66,11 +83,11 @@ Sola_2026/
 │   │   │       ├── 02_ExportJPEG_HQ/
 │   │   │       ├── 03_ExportJPEG_LQ/
 │   │   │       └── 04_ExportRAW/
-│   │   ├── … Tag_2 bis Tag_8 …
+│   │   ├── … 2_Tag bis 8_Tag …
 │   │   └── LR Kataloge/
 │   │       └── 01_<Name>/            (je Fotograf:in)
 │   ├── 02_Video/
-│   │   └── Tag_1_13-06-2026/
+│   │   └── 1_Tag_13-06-2026/
 │   │       ├── 01_Rohvideos/
 │   │       │   └── 01_<Name>/        (je Videograf:in)
 │   │       ├── 02_Projektdatein/
@@ -97,7 +114,7 @@ Die Struktur ist die des Originals, an drei Stellen aber vereinheitlicht — im
 Original hatten Teens und Kids uneinheitliche Namen, teils mit fehlendem
 Trennzeichen oder als roher `Date`-Wert:
 
-* Tagesordner heißen jetzt überall `Tag_<n>_<dd-MM-yyyy>` (Original: mal
+* Tagesordner heißen jetzt überall `<n>_Tag_<dd-MM-yyyy>` (Original: mal
   `_Tag_1_13-06-2022`, mal `Tag_1_Mon Jun 13 2022 …`, im Audio-Ordner
   `_Tag_113-06-2022`).
 * Bei Kids wird derselbe formatierte Datumsstring verwendet wie bei Teens.
@@ -116,13 +133,34 @@ ISO `yyyy-MM-dd` erkannt.
 
 ## Lightroom-Vorgaben
 
-Installiert werden drei Exportvorgaben (`HighQuality_HQ`, `LowQuality_LQ`,
+Mitgeliefert werden drei Exportvorgaben (`HighQuality_HQ`, `LowQuality_LQ`,
 `RAW`) und zwei Entwicklungsvorgaben (`SOLA_Draussen`,
 `SOLA_Veranstaltungszelt`). In die Exportvorgaben trägt die App
 `internalName`, `title`, `tokenCustomString` und `tokens` ein, also
 z. B. `SOLA26_Teens_HighQuality (HQ)` und das Kürzel.
 
-Zielordner:
+### Eigene Vorgaben
+
+Die mitgelieferten Vorgaben sind nur der Ausgangspunkt — unter *Verfügbare
+Vorgaben* lässt sich der Bestand ändern, ohne die App neu zu bauen:
+
+* **Hinzufügen** — beliebige `.lrtemplate`- und `.xmp`-Dateien einlesen, auch
+  mehrere auf einmal.
+* **Ersetzen** — eine eigene Datei mit demselben Dateinamen tritt an die Stelle
+  der mitgelieferten. Nach dem *Entfernen* greift wieder die mitgelieferte;
+  überschrieben wird nichts.
+* **Ab- und anwählen** — jede Vorgabe hat ein Häkchen. Nur angehakte werden
+  installiert. Mitgelieferte lassen sich abwählen, aber nicht löschen.
+* **Bezeichnung und Kurzform** — bei Exportvorgaben direkt in der Tabelle
+  editierbar. Sie landen im Vorgabennamen (`SOLA26_Teens_<Bezeichnung>`) und im
+  Dateinamen-Token (`…_<Kurz>_{{image_name}}`). Bei neuen Dateien schlägt die
+  App beides aus dem Dateinamen vor.
+* **Zurücksetzen** — verwirft alle eigenen Vorgaben und Abwahlen.
+
+Eigene Vorgaben liegen im Benutzerdatenordner der App und überstehen damit ein
+Update. Der Pfad steht in der App unter Punkt 4; *Ordner öffnen* springt hin.
+
+Zielordner beim Installieren:
 
 | Plattform | Pfad |
 | --- | --- |
@@ -137,9 +175,24 @@ Der tatsächlich verwendete Pfad steht in der App unter Punkt 4.
 npm install
 npm start          # App starten
 npm test           # Tests der Kernlogik (node:test, ohne Oberfläche)
-npm run dist:mac   # .dmg + .zip bauen (nur auf macOS)
+npm run smoke      # Headless-Durchlauf durch die echte App (Linux, via xvfb-run)
+npm run smoke:mac  # derselbe Durchlauf auf macOS/Windows, mit sichtbarem Fenster
+npm run dist:mac   # .dmg bauen (nur auf macOS)
 npm run dist:win   # .exe bauen (auf Windows; via wine auch anderswo)
 ```
+
+### Headless-Durchlauf
+
+`npm run smoke` startet den echten Hauptprozess, füllt das Formular, legt eine
+Ordnerstruktur in einem temporären Ordner an und prüft unter anderem:
+
+* die Vorschau zeigt genau den Baum, der danach auf der Platte liegt,
+* die Tagesordner sortieren nach Tag und stehen vor `LR Kataloge`,
+* eine eigene Vorgabe erscheint in der Tabelle, lässt sich abwählen und entfernen,
+* bei 1180, 760 und 620 px Fensterbreite scrollt die Seite nicht seitlich.
+
+Dabei entstehen die Screenshots in `docs/screenshots/`. Der Lauf endet mit
+Code 1, sobald eine Prüfung fehlschlägt — er taugt also für CI.
 
 ### Aufbau
 
@@ -148,11 +201,13 @@ src/core/       Plattformunabhängige Logik, ohne Electron-Abhängigkeit
   structure.js    baut den Ordnerbaum als Liste relativer Pfade (rein funktional)
   createStructure.js  legt diese Liste auf der Platte an
   lightroom.js    Preset-Pfade je Plattform, Kopieren und Anpassen
+  presetStore.js  führt mitgelieferte und eigene Vorgaben zusammen
   config.js       JSON- und CSV-Format (Letzteres kompatibel zum Original)
   dates.js        Tagesberechnung, Solajahr
   validate.js     Namensprüfung und Absicherung der Ordnernamen
 src/main/       Electron-Hauptprozess: Fenster, Menü, Dialoge, IPC
 src/renderer/   Oberfläche (HTML/CSS/JS, ohne Node-Zugriff)
+scripts/smoke.js    Headless-Durchlauf, erzeugt zugleich die Screenshots
 resources/presets/  Die mitgelieferten Lightroom-Vorlagen
 ```
 

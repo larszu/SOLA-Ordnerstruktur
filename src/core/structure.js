@@ -38,8 +38,12 @@ const LR_KATALOGE = 'LR Kataloge';
 /** `1` -> `01`, `12` -> `12` */
 const nr = (n) => String(n).padStart(2, '0');
 
-/** Tagesordner heißen einheitlich `Tag_<n>_<dd-MM-yyyy>`. */
-const tagOrdner = (tag, datum) => (datum ? `Tag_${tag}_${datum}` : `Tag_${tag}`);
+/**
+ * Tagesordner heißen einheitlich `<n>_Tag_<dd-MM-yyyy>`.
+ * Die Tagesnummer steht vorn, damit die Ordner nach Tag sortieren und im
+ * Fotobereich vor `LR Kataloge` einsortiert werden.
+ */
+const tagOrdner = (tag, datum) => (datum ? `${tag}_Tag_${datum}` : `${tag}_Tag`);
 
 /**
  * @typedef {Object} SolaAuswahl

@@ -103,6 +103,9 @@ main {
   border: 1px solid var(--rand);
   border-radius: var(--radius);
   padding: 18px 20px 20px;
+  /* Ohne das schrumpft ein Grid-Element nie unter die Breite seines
+     Inhalts – die scrollende Tabelle würde die ganze Seite aufspreizen. */
+  min-width: 0;
 }
 
 .karte h2 {
@@ -224,6 +227,7 @@ input.ungueltig {
   border: 1px solid var(--rand);
   border-radius: var(--radius);
   overflow: hidden;
+  min-width: 0;
 }
 
 .sola-kopf {
@@ -299,6 +303,12 @@ fieldset {
   color: var(--gedaempft);
   font-size: 12.5px;
   margin: 0;
+}
+
+/* Der Lightroom-Zielpfad steht auf zwei Zeilen. */
+#lrPfad {
+  white-space: pre-line;
+  margin-top: 12px;
 }
 
 .mono {
@@ -388,4 +398,189 @@ fieldset {
 
 .fuss a {
   color: var(--akzent);
+}
+
+/* --- Verwaltung der Lightroom-Vorgaben ---------------------------------- */
+
+.vorgaben {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rand);
+}
+
+.vorgaben-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.vorgaben-kopf h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.vorgaben-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Breite Tabellen scrollen in sich, damit die Seite nie seitlich scrollt. */
+.tabelle-scroll {
+  margin-top: 12px;
+  overflow-x: auto;
+  min-width: 0;
+  border: 1px solid var(--rand);
+  border-radius: 8px;
+}
+
+.vorgaben-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 640px;
+}
+
+.vorgaben-tabelle th,
+.vorgaben-tabelle td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--rand);
+  vertical-align: middle;
+}
+
+.vorgaben-tabelle tbody tr:last-child th,
+.vorgaben-tabelle tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vorgaben-tabelle th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gedaempft);
+  background: var(--bg);
+}
+
+.spalte-aktiv {
+  width: 52px;
+  text-align: center;
+}
+
+.spalte-aktiv input {
+  margin: 0;
+}
+
+.spalte-aktion {
+  width: 110px;
+  text-align: right;
+}
+
+/* Die Tabelle scrollt ohnehin – Dateinamen sollen dann nicht
+   buchstabenweise umbrechen. */
+.vorgaben-tabelle .mono {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.vorgaben-tabelle .leer,
+.vorgaben-tabelle .gedaempft {
+  color: var(--gedaempft);
+}
+
+.marke {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+  border: 1px solid var(--rand);
+}
+
+.marke-eigen {
+  background: var(--akzent-hell);
+  border-color: var(--akzent);
+  color: var(--akzent);
+}
+
+.meta-felder {
+  display: flex;
+  gap: 6px;
+}
+
+.meta-felder input {
+  font-size: 12px;
+  padding: 4px 7px;
+  min-width: 0;
+  flex: 1;
+}
+
+.meta-felder .kurz {
+  flex: 0 0 68px;
+}
+
+.knopf-klein {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* --- Schmale Fenster ---------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .kopf,
+  main,
+  .fuss {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .solas {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .kopf {
+    padding-top: 42px;
+  }
+
+  .kopf-aktionen {
+    width: 100%;
+  }
+
+  .kopf-aktionen .knopf {
+    flex: 1;
+  }
+
+  .zeile {
+    flex-wrap: wrap;
+  }
+
+  .pfad {
+    flex-basis: 100%;
+  }
+
+  /* Zwei Namensspalten nebeneinander werden hier zu schmal. */
+  .namen {
+    grid-template-columns: 1fr;
+  }
+
+  .feld-schmal {
+    max-width: none;
+    width: 100%;
+  }
+
+  .vorgaben-aktionen {
+    width: 100%;
+  }
+
+  /* Lieber in zwei Reihen umbrechen als die Beschriftung quetschen. */
+  .vorgaben-aktionen .knopf {
+    flex: 1 0 auto;
+    white-space: nowrap;
+  }
 }

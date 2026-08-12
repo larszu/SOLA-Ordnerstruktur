@@ -59,7 +59,7 @@ test('nachträglich ergänzte Namen kommen dazu, ohne Bestehendes anzufassen', (
   const config = beispielConfig();
   createStructure(ziel, config);
 
-  const markierung = path.join(ziel, 'Sola_2026', '01_Teens', '01_Foto', 'Tag_1_13-06-2026', '05_Lars', 'foto.jpg');
+  const markierung = path.join(ziel, 'Sola_2026', '01_Teens', '01_Foto', '1_Tag_13-06-2026', '05_Lars', 'foto.jpg');
   fs.writeFileSync(markierung, 'x');
 
   config.teens.fotografen[1] = 'Maja';
@@ -67,7 +67,7 @@ test('nachträglich ergänzte Namen kommen dazu, ohne Bestehendes anzufassen', (
 
   assert.ok(ergebnis.erstellt > 0);
   assert.ok(fs.existsSync(markierung), 'vorhandene Datei bleibt erhalten');
-  assert.ok(fs.existsSync(path.join(ziel, 'Sola_2026', '01_Teens', '01_Foto', 'Tag_1_13-06-2026', '06_Maja')));
+  assert.ok(fs.existsSync(path.join(ziel, 'Sola_2026', '01_Teens', '01_Foto', '1_Tag_13-06-2026', '06_Maja')));
 });
 
 test('ohne Zielordner passiert nichts', () => {

@@ -11,6 +11,8 @@ const zustand = {
   config: null,
   bereiche: [],
   letzterPlan: { ordner: [], jahr: '', warnungen: [] },
+  vorgaben: [],
+  lrPfade: {},
 };
 
 const $ = (id) => document.getElementById(id);
@@ -30,6 +32,7 @@ async function init() {
   verdrahteKopf();
   verdrahtePresets();
   await zeigeLightroomPfad();
+  zeigeVorgaben(await sola.presetsListe());
   aktualisiere();
 }
 
@@ -292,6 +295,35 @@ async function laden() {
 function verdrahtePresets() {
   $('kuerzel').addEventListener('input', pruefePresetKnopf);
   $('presetJahr').addEventListener('input', pruefePresetKnopf);
+
+  $('btnPresetAdd').addEventListener('click', async () => {
+    const ergebnis = await sola.presetHinzufuegen();
+    if (ergebnis.abgebrochen) return;
+    zeigeVorgaben(ergebnis.vorgaben);
+    zeigeMeldungen(
+      'presetMeldungen',
+      ergebnis.ergebnisse.map((e) =>
+        e.ok
+          ? { art: 'erfolg', text: `${e.datei} übernommen${e.ersetzt ? ' — ersetzt die mitgelieferte Fassung' : ''}.` }
+          : { art: 'fehler', text: `${e.quelle}: ${e.grund}` },
+      ),
+    );
+  });
+
+  $('btnPresetReset').addEventListener('click', async () => {
+    const ergebnis = await sola.presetsZuruecksetzen();
+    zeigeVorgaben(ergebnis.vorgaben);
+    zeigeMeldungen('presetMeldungen', [
+      ergebnis.ok
+        ? { art: 'erfolg', text: 'Eigene Vorgaben verworfen — es gelten wieder die mitgelieferten.' }
+        : { art: 'fehler', text: `Zurücksetzen fehlgeschlagen: ${ergebnis.grund}` },
+    ]);
+  });
+
+  $('btnPresetOrdner').addEventListener('click', () => {
+    if (zustand.lrPfade.eigene) sola.ordnerOeffnen(zustand.lrPfade.eigene);
+  });
+
   $('btnPresets').addEventListener('click', async () => {
     const daten = {
       jahr: $('presetJahr').value.trim(),
@@ -316,12 +348,128 @@ function pruefePresetKnopf() {
   const jahrOk = /^\d{2}$/.test($('presetJahr').value.trim());
   const kuerzelOk = KUERZEL_MUSTER.test(kuerzel.value.trim());
   kuerzel.classList.toggle('ungueltig', kuerzel.value.trim() !== '' && !kuerzelOk);
-  $('btnPresets').disabled = !(jahrOk && kuerzelOk);
+  const hatAktive = zustand.vorgaben.some((v) => v.aktiv);
+  $('btnPresets').disabled = !(jahrOk && kuerzelOk && hatAktive);
 }
 
 async function zeigeLightroomPfad() {
-  const pfade = await sola.lightroomPfade();
-  $('lrPfad').textContent = `Ziel: ${pfade.exportPresets} · ${pfade.developPresets}`;
+  zustand.lrPfade = await sola.lightroomPfade();
+  $('lrPfad').textContent =
+    `Ziel: ${zustand.lrPfade.exportPresets} · ${zustand.lrPfade.developPresets}` +
+    `\nEigene Vorgaben: ${zustand.lrPfade.eigene}`;
+}
+
+/** Baut die Tabelle der verfügbaren Vorgaben neu auf. */
+function zeigeVorgaben(vorgaben) {
+  zustand.vorgaben = vorgaben || [];
+  const ziel = $('vorgabenListe');
+  ziel.textContent = '';
+
+  if (zustand.vorgaben.length === 0) {
+    const zeile = document.createElement('tr');
+    const zelle = document.createElement('td');
+    zelle.colSpan = 6;
+    zelle.className = 'leer';
+    zelle.textContent = 'Keine Vorgaben vorhanden.';
+    zeile.appendChild(zelle);
+    ziel.appendChild(zeile);
+    pruefePresetKnopf();
+    return;
+  }
+
+  for (const vorgabe of zustand.vorgaben) {
+    ziel.appendChild(baueVorgabenZeile(vorgabe));
+  }
+  pruefePresetKnopf();
+}
+
+function baueVorgabenZeile(vorgabe) {
+  const zeile = document.createElement('tr');
+  zeile.dataset.datei = vorgabe.datei;
+
+  const zelle = (inhalt, klasse) => {
+    const td = document.createElement('td');
+    if (klasse) td.className = klasse;
+    if (inhalt !== undefined) td.append(inhalt);
+    zeile.appendChild(td);
+    return td;
+  };
+
+  const anAus = document.createElement('input');
+  anAus.type = 'checkbox';
+  anAus.checked = vorgabe.aktiv;
+  anAus.title = 'Beim Installieren berücksichtigen';
+  anAus.addEventListener('change', async () => {
+    const ergebnis = await sola.presetAktiv(vorgabe.datei, anAus.checked);
+    zeigeVorgaben(ergebnis.vorgaben);
+  });
+  zelle(anAus, 'spalte-aktiv');
+
+  const name = document.createElement('span');
+  name.className = 'mono';
+  name.textContent = vorgabe.datei;
+  zelle(name);
+
+  zelle(vorgabe.typ === 'export' ? 'Export' : 'Entwicklung');
+
+  const quelle = document.createElement('span');
+  quelle.className = `marke marke-${vorgabe.quelle}`;
+  quelle.textContent = vorgabe.quelle === 'eigen' ? (vorgabe.ersetzt ? 'eigen (ersetzt)' : 'eigen') : 'mitgeliefert';
+  zelle(quelle);
+
+  // Nur Exportvorgaben tragen Bezeichnung und Kurzform in die Datei ein.
+  if (vorgabe.typ === 'export') {
+    const box = document.createElement('div');
+    box.className = 'meta-felder';
+    const lang = document.createElement('input');
+    lang.type = 'text';
+    lang.value = vorgabe.lang || '';
+    lang.placeholder = 'Bezeichnung';
+    lang.setAttribute('aria-label', `Bezeichnung für ${vorgabe.datei}`);
+    const kurz = document.createElement('input');
+    kurz.type = 'text';
+    kurz.value = vorgabe.kurz || '';
+    kurz.placeholder = 'Kurz';
+    kurz.className = 'kurz';
+    kurz.setAttribute('aria-label', `Kurzform für ${vorgabe.datei}`);
+
+    const speichern = async () => {
+      const ergebnis = await sola.presetMeta(vorgabe.datei, lang.value, kurz.value);
+      zustand.vorgaben = ergebnis.vorgaben;
+      pruefePresetKnopf();
+    };
+    lang.addEventListener('change', speichern);
+    kurz.addEventListener('change', speichern);
+    box.append(lang, kurz);
+    zelle(box);
+  } else {
+    zelle('—', 'gedaempft');
+  }
+
+  const aktion = zelle(undefined, 'spalte-aktion');
+  if (vorgabe.quelle === 'eigen') {
+    const entfernen = document.createElement('button');
+    entfernen.type = 'button';
+    entfernen.className = 'knopf knopf-klein';
+    entfernen.textContent = 'Entfernen';
+    entfernen.addEventListener('click', async () => {
+      const ergebnis = await sola.presetEntfernen(vorgabe.datei);
+      zeigeVorgaben(ergebnis.vorgaben);
+      zeigeMeldungen('presetMeldungen', [
+        ergebnis.ok
+          ? {
+              art: 'erfolg',
+              text: ergebnis.wiederhergestellt
+                ? `${vorgabe.datei} entfernt — die mitgelieferte Fassung gilt wieder.`
+                : `${vorgabe.datei} entfernt.`,
+            }
+          : { art: 'fehler', text: `${vorgabe.datei}: ${ergebnis.grund}` },
+      ]);
+    });
+    aktion.appendChild(entfernen);
+  }
+
+  return zeile;
 }
 
 init();

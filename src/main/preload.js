@@ -15,6 +15,12 @@ contextBridge.exposeInMainWorld('sola', {
   configLaden: () => ipcRenderer.invoke('config:laden'),
   lightroomPfade: () => ipcRenderer.invoke('lightroom:pfade'),
   presetsInstallieren: (daten) => ipcRenderer.invoke('lightroom:installieren', daten),
+  presetsListe: () => ipcRenderer.invoke('presets:liste'),
+  presetHinzufuegen: () => ipcRenderer.invoke('presets:hinzufuegen'),
+  presetEntfernen: (datei) => ipcRenderer.invoke('presets:entfernen', datei),
+  presetAktiv: (datei, aktiv) => ipcRenderer.invoke('presets:aktiv', { datei, aktiv }),
+  presetMeta: (datei, lang, kurz) => ipcRenderer.invoke('presets:meta', { datei, lang, kurz }),
+  presetsZuruecksetzen: () => ipcRenderer.invoke('presets:zuruecksetzen'),
   linkOeffnen: (url) => ipcRenderer.invoke('shell:oeffnen', url),
   appInfo: () => ipcRenderer.invoke('app:info'),
   onMenu: (kanal, handler) => {
