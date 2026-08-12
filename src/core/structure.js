@@ -1,7 +1,19 @@
 'use strict';
 
-const { berechneWoche, solaJahr, SOLA_TAGE } = require('./dates');
+const { berechneWoche, solaJahr, SOLA_TAGE, normalisiereTage } = require('./dates');
 const { sanitizeSegment, compactNames } = require('./validate');
+
+/**
+ * Die Solas, die sich anlegen lassen. Der Ordner steht fest und hängt *nicht*
+ * an der Anwahl: Wer später ein weiteres Sola ergänzt, soll die schon
+ * angelegten Ordner unverändert wiederfinden.
+ */
+const SOLAS = [
+  { key: 'teens', label: 'Teens', titel: 'Teensola', ordner: '01_Teens' },
+  { key: 'kids', label: 'Kids', titel: 'Kidssola', ordner: '02_Kids' },
+  { key: 'sofa', label: 'SOFA', titel: 'SOFA', ordner: '03_SOFA' },
+  { key: 'next', label: 'Sola next', titel: 'Sola next', ordner: '04_Sola_next' },
+];
 
 /**
  * Die acht Bereiche in der Reihenfolge, in der sie durchnummeriert werden.
@@ -49,6 +61,7 @@ const tagOrdner = (tag, datum) => (datum ? `${tag}_Tag_${datum}` : `${tag}_Tag`)
  * @typedef {Object} SolaAuswahl
  * @property {boolean} aktiv       Sola überhaupt angewählt
  * @property {string}  start       Startdatum als `yyyy-MM-dd`
+ * @property {number}  tage        Dauer in Tagen (1–31)
  * @property {Object<string, boolean>} bereiche  Anwahl je Bereich (siehe BEREICHE)
  * @property {string[]} fotografen Bis zu 10 Namen
  * @property {string[]} videografen Bis zu 10 Namen
@@ -59,6 +72,8 @@ const tagOrdner = (tag, datum) => (datum ? `${tag}_Tag_${datum}` : `${tag}_Tag`)
  * @property {string} [jahr]  Solajahr; leer = automatisch aus den Startdaten
  * @property {SolaAuswahl} teens
  * @property {SolaAuswahl} kids
+ * @property {SolaAuswahl} sofa
+ * @property {SolaAuswahl} next
  */
 
 /**
@@ -76,18 +91,13 @@ function buildPlan(config) {
   const warnungen = [];
   const cfg = normalizeConfig(config);
 
-  const auto = solaJahr({
-    teens: cfg.teens.aktiv,
-    kids: cfg.kids.aktiv,
-    teenStart: cfg.teens.start,
-    kidsStart: cfg.kids.start,
-  });
+  const auto = solaJahr(SOLAS.filter((s) => cfg[s.key].aktiv).map((s) => ({ label: s.label, start: cfg[s.key].start })));
   const jahr = String(cfg.jahr || auto.jahr || '').trim();
 
   if (!jahr) {
     warnungen.push(
       auto.conflict
-        ? `Teens (${auto.teenJahr}) und Kids (${auto.kidsJahr}) liegen in verschiedenen Jahren – bitte das Solajahr manuell angeben.`
+        ? `${auto.jahre.map((e) => `${e.label} (${e.jahr})`).join(', ')} liegen in verschiedenen Jahren – bitte das Solajahr manuell angeben.`
         : 'Kein Solajahr ermittelbar – bitte Startdatum wählen oder das Jahr manuell angeben.',
     );
     return { ordner: [], jahr: '', warnungen };
@@ -108,22 +118,20 @@ function buildPlan(config) {
     return pfad;
   };
 
-  const solas = [
-    { auswahl: cfg.teens, ordnerName: '01_Teens' },
-    { auswahl: cfg.kids, ordnerName: '02_Kids' },
-  ];
-
-  for (const { auswahl, ordnerName } of solas) {
+  for (const sola of SOLAS) {
+    const auswahl = cfg[sola.key];
     if (!auswahl.aktiv) continue;
+    const ordnerName = sola.ordner;
 
     const gewaehlt = BEREICHE.filter((b) => auswahl.bereiche[b.key]);
     if (gewaehlt.length === 0) {
-      warnungen.push(`${ordnerName}: kein Bereich angewählt – es wird nur der Sola-Ordner angelegt.`);
+      warnungen.push(`${sola.titel}: kein Bereich angewählt – es wird nur der Sola-Ordner angelegt.`);
     }
 
-    const tage = berechneWoche(auswahl.start);
+    const anzahlTage = auswahl.tage;
+    const tage = berechneWoche(auswahl.start, anzahlTage);
     if (gewaehlt.length > 0 && tage.length === 0) {
-      warnungen.push(`${ordnerName}: kein gültiges Startdatum – Tagesordner werden ohne Datum benannt.`);
+      warnungen.push(`${sola.titel}: kein gültiges Startdatum – Tagesordner werden ohne Datum benannt.`);
     }
     const datumVon = (tag) => tage[tag - 1] || '';
 
@@ -135,7 +143,7 @@ function buildPlan(config) {
       switch (bereich.key) {
         case 'foto': {
           const fotografen = auswahl.fotografen.filter(Boolean);
-          for (let tag = 1; tag <= SOLA_TAGE; tag += 1) {
+          for (let tag = 1; tag <= anzahlTage; tag += 1) {
             const tagPfad = add(bereichsPfad, tagOrdner(tag, datumVon(tag)));
             const feste = FOTO_TAG_ORDNER(tag);
             for (const name of feste) add(tagPfad, name);
@@ -153,7 +161,7 @@ function buildPlan(config) {
 
         case 'video': {
           const videografen = auswahl.videografen.filter(Boolean);
-          for (let tag = 1; tag <= SOLA_TAGE; tag += 1) {
+          for (let tag = 1; tag <= anzahlTage; tag += 1) {
             const tagPfad = add(bereichsPfad, tagOrdner(tag, datumVon(tag)));
             let rohvideos = '';
             for (const name of VIDEO_TAG_ORDNER) {
@@ -168,7 +176,7 @@ function buildPlan(config) {
 
         case 'showfiles':
         case 'audio': {
-          for (let tag = 1; tag <= SOLA_TAGE; tag += 1) {
+          for (let tag = 1; tag <= anzahlTage; tag += 1) {
             add(bereichsPfad, tagOrdner(tag, datumVon(tag)));
           }
           break;
@@ -186,6 +194,7 @@ function buildPlan(config) {
 
 /** Füllt fehlende Felder auf und normalisiert die Namenslisten. */
 function normalizeConfig(config) {
+  const quelle = config || {};
   const sola = (raw) => {
     const src = raw || {};
     const bereiche = {};
@@ -193,16 +202,15 @@ function normalizeConfig(config) {
     return {
       aktiv: Boolean(src.aktiv),
       start: String(src.start || ''),
+      tage: normalisiereTage(src.tage),
       bereiche,
       fotografen: compactNames(src.fotografen),
       videografen: compactNames(src.videografen),
     };
   };
-  return {
-    jahr: String((config || {}).jahr || ''),
-    teens: sola((config || {}).teens),
-    kids: sola((config || {}).kids),
-  };
+  const ergebnis = { jahr: String(quelle.jahr || '') };
+  for (const s of SOLAS) ergebnis[s.key] = sola(quelle[s.key]);
+  return ergebnis;
 }
 
 /** Leere Konfiguration – Ausgangspunkt für die Oberfläche und für Tests. */
@@ -210,14 +218,18 @@ function emptyConfig() {
   const sola = () => ({
     aktiv: false,
     start: '',
+    tage: SOLA_TAGE,
     bereiche: Object.fromEntries(BEREICHE.map((b) => [b.key, false])),
     fotografen: Array(10).fill(''),
     videografen: Array(10).fill(''),
   });
-  return { jahr: '', teens: sola(), kids: sola() };
+  const ergebnis = { jahr: '' };
+  for (const s of SOLAS) ergebnis[s.key] = sola();
+  return ergebnis;
 }
 
 module.exports = {
+  SOLAS,
   BEREICHE,
   FOTO_UNTERORDNER,
   FOTO_TAG_ORDNER,

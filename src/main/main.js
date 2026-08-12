@@ -4,11 +4,12 @@ const { app, BrowserWindow, dialog, ipcMain, shell, Menu } = require('electron')
 const fs = require('fs');
 const path = require('path');
 
-const { buildPlan, BEREICHE, emptyConfig } = require('../core/structure');
+const { buildPlan, BEREICHE, SOLAS, emptyConfig } = require('../core/structure');
 const { createStructure } = require('../core/createStructure');
 const { installPresets, lightroomPfade } = require('../core/lightroom');
 const presetStore = require('../core/presetStore');
-const { toCsv, toJson, parseConfig } = require('../core/config');
+const { SOLA_TAGE, MIN_TAGE, MAX_TAGE } = require('../core/dates');
+const { toCsv, toJson, parseConfig, csvVerlust } = require('../core/config');
 
 const IST_MAC = process.platform === 'darwin';
 
@@ -156,10 +157,13 @@ ipcMain.handle('config:speichern', async (_e, config) => {
   if (ergebnis.canceled || !ergebnis.filePath) return { gespeichert: false };
 
   const pfad = ergebnis.filePath;
-  const inhalt = /\.csv$/i.test(pfad) ? toCsv(config) : toJson(config);
+  const alsCsv = /\.csv$/i.test(pfad);
+  const inhalt = alsCsv ? toCsv(config) : toJson(config);
   try {
     fs.writeFileSync(pfad, inhalt, 'utf8');
-    return { gespeichert: true, pfad };
+    // Das CSV-Format des Originals kennt nur Teens, Kids und acht Tage.
+    // Was dabei wegfällt, soll nicht stillschweigend verschwinden.
+    return { gespeichert: true, pfad, verlust: alsCsv ? csvVerlust(config) : [] };
   } catch (err) {
     return { gespeichert: false, fehler: err.message };
   }
@@ -251,5 +255,7 @@ ipcMain.handle('app:info', () => ({
   // Bereichsliste und leere Konfiguration kommen aus dem Kern, damit die
   // Oberfläche keine zweite Quelle der Wahrheit aufmacht.
   bereiche: BEREICHE,
+  solas: SOLAS,
+  tage: { standard: SOLA_TAGE, min: MIN_TAGE, max: MAX_TAGE },
   leereConfig: emptyConfig(),
 }));

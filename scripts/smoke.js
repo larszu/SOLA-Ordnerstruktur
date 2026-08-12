@@ -89,8 +89,11 @@ function zaehleOrdner(dir) {
 
 /** Die Konfiguration, die der Testlauf in der Oberfläche einstellt. */
 const TEST_CONFIG = {
-  teens: { start: '2026-06-13', bereiche: ['foto', 'video', 'orga'], fotografen: ['Lars', 'Maja'], videografen: ['Jonas'] },
-  kids: { start: '2026-08-01', bereiche: ['showfiles'], fotografen: [], videografen: [] },
+  teens: { start: '2026-06-13', tage: 8, bereiche: ['foto', 'video', 'orga'], fotografen: ['Lars', 'Maja'], videografen: ['Jonas'] },
+  kids: { start: '2026-08-01', tage: 8, bereiche: ['showfiles'], fotografen: [], videografen: [] },
+  // Kürzere Dauer, damit die Einstellung im Durchlauf wirklich geprüft wird.
+  sofa: { start: '2026-09-05', tage: 4, bereiche: ['showfiles'], fotografen: [], videografen: [] },
+  next: { start: '2026-10-02', tage: 3, bereiche: ['orga'], fotografen: [], videografen: [] },
 };
 
 /** Füllt das Formular so, wie es ein Klick durch die Oberfläche täte. */
@@ -105,6 +108,10 @@ const FORMULAR_FUELLEN = `(async () => {
     const start = karte.querySelector('.sola-start');
     start.value = daten.start;
     start.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const tage = karte.querySelector('.sola-tage');
+    tage.value = String(daten.tage);
+    tage.dispatchEvent(new Event('input', { bubbles: true }));
 
     for (const bereich of daten.bereiche) anhaken(karte.querySelector('[data-bereich="' + bereich + '"]'));
 
@@ -130,6 +137,8 @@ const FORMULAR_FUELLEN = `(async () => {
     planInfo: document.getElementById('planInfo').textContent,
     vorschauZeilen: document.getElementById('vorschauBaum').textContent.split('\\n').filter(Boolean).length,
     presetsAktiv: !document.getElementById('btnPresets').disabled,
+    solaKarten: document.querySelectorAll('.sola').length,
+    presetSolas: [...document.querySelectorAll('#presetSola option')].map((o) => o.value),
     teensNamenFrei: [...document.querySelectorAll('.sola[data-sola="teens"] .namen-spalte input')].filter((i) => !i.disabled).length,
     kidsNamenFrei: [...document.querySelectorAll('.sola[data-sola="kids"] .namen-spalte input')].filter((i) => !i.disabled).length,
   };
@@ -168,31 +177,36 @@ app.whenReady().then(async () => {
 
     console.log('\n· Formular ausfüllen');
     const zustand = await imFenster(FORMULAR_FUELLEN);
-    const plan = buildPlan({
-      teens: {
-        aktiv: true,
-        start: TEST_CONFIG.teens.start,
-        bereiche: Object.fromEntries(TEST_CONFIG.teens.bereiche.map((b) => [b, true])),
-        fotografen: TEST_CONFIG.teens.fotografen,
-        videografen: TEST_CONFIG.teens.videografen,
-      },
-      kids: {
-        aktiv: true,
-        start: TEST_CONFIG.kids.start,
-        bereiche: { showfiles: true },
-        fotografen: [],
-        videografen: [],
-      },
-    });
+    const plan = buildPlan(
+      Object.fromEntries(
+        Object.entries(TEST_CONFIG).map(([key, daten]) => [
+          key,
+          {
+            aktiv: true,
+            start: daten.start,
+            tage: daten.tage,
+            bereiche: Object.fromEntries(daten.bereiche.map((b) => [b, true])),
+            fotografen: daten.fotografen,
+            videografen: daten.videografen,
+          },
+        ]),
+      ),
+    );
     pruefe(
       zustand.vorschauZeilen === plan.ordner.length,
       'die Vorschau zeigt genau den geplanten Baum',
       `Vorschau ${zustand.vorschauZeilen}, Plan ${plan.ordner.length}`,
     );
     pruefe(zustand.planInfo.includes('Sola_2026'), 'das Solajahr kommt aus dem Startdatum', zustand.planInfo);
+    pruefe(zustand.solaKarten === 4, 'alle vier Solas stehen zur Auswahl', `${zustand.solaKarten} Karten`);
+    pruefe(
+      zustand.presetSolas.join(', ') === 'Teens, Kids, SOFA, Sola next',
+      'die Vorgaben lassen sich für jedes Sola erzeugen',
+      zustand.presetSolas.join(', '),
+    );
     pruefe(zustand.teensNamenFrei === 20, 'Foto und Video geben je zehn Namensfelder frei', String(zustand.teensNamenFrei));
     pruefe(zustand.kidsNamenFrei === 0, 'ohne Foto/Video bleiben die Namensfelder gesperrt', String(zustand.kidsNamenFrei));
-    await screenshot(win, '02-ausgefuellt.png');
+    await screenshot(win, '02-ausgefuellt.png', 'main > .karte:nth-of-type(2)');
 
     console.log('\n· Ordnerstruktur anlegen');
     fs.mkdirSync(ziel, { recursive: true });
@@ -220,6 +234,16 @@ app.whenReady().then(async () => {
       '"LR Kataloge" steht hinter den Tagesordnern',
       tagesordner[8],
     );
+    const solaOrdner = fs.readdirSync(path.join(ziel, 'Sola_2026')).sort();
+    pruefe(
+      solaOrdner.join(', ') === '01_Teens, 02_Kids, 03_SOFA, 04_Sola_next',
+      'jedes Sola bekommt seinen festen Ordner',
+      solaOrdner.join(', '),
+    );
+
+    const sofaTage = fs.readdirSync(path.join(ziel, 'Sola_2026', '03_SOFA', '01_Showfiles'));
+    pruefe(sofaTage.length === 4, 'die eingestellte Dauer schlägt auf die Tagesordner durch', `${sofaTage.length} statt 4`);
+
     await screenshot(win, '03-erstellt.png', 'main > .karte:nth-of-type(3)');
 
     console.log('\n· Vorgaben verwalten');

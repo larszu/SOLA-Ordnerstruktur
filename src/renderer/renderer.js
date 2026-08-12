@@ -10,6 +10,8 @@ const zustand = {
   pfad: '',
   config: null,
   bereiche: [],
+  solas: [],
+  tageGrenzen: { standard: 8, min: 1, max: 31 },
   letzterPlan: { ordner: [], jahr: '', warnungen: [] },
   vorgaben: [],
   lrPfade: {},
@@ -24,6 +26,8 @@ const $ = (id) => document.getElementById(id);
 async function init() {
   const info = await sola.appInfo();
   zustand.bereiche = info.bereiche;
+  zustand.solas = info.solas;
+  zustand.tageGrenzen = info.tage;
   zustand.config = info.leereConfig;
   $('version').textContent = `v${info.version}`;
   $('presetJahr').value = String(new Date().getFullYear()).slice(-2);
@@ -39,11 +43,17 @@ async function init() {
 function baueSolas() {
   const ziel = $('solas');
   ziel.textContent = '';
-  for (const [schluessel, titel] of [
-    ['teens', 'Teensola (01_Teens)'],
-    ['kids', 'Kidssola (02_Kids)'],
-  ]) {
-    ziel.appendChild(baueSola(schluessel, titel));
+  for (const sola of zustand.solas) {
+    ziel.appendChild(baueSola(sola.key, `${sola.titel} (${sola.ordner})`));
+  }
+  // Auch die Vorgaben lassen sich für jedes Sola erzeugen.
+  const auswahl = $('presetSola');
+  auswahl.textContent = '';
+  for (const sola of zustand.solas) {
+    const option = document.createElement('option');
+    option.value = sola.label;
+    option.textContent = sola.label;
+    auswahl.appendChild(option);
   }
 }
 
@@ -63,6 +73,24 @@ function baueSola(schluessel, titel) {
   start.addEventListener('change', () => {
     zustand.config[schluessel].start = start.value;
     aktualisiere();
+  });
+
+  const tage = knoten.querySelector('.sola-tage');
+  tage.min = String(zustand.tageGrenzen.min);
+  tage.max = String(zustand.tageGrenzen.max);
+  const tageUebernehmen = () => {
+    const zahl = Number(tage.value);
+    const gueltig = Number.isFinite(zahl) && zahl >= zustand.tageGrenzen.min && zahl <= zustand.tageGrenzen.max;
+    tage.classList.toggle('ungueltig', !gueltig);
+    if (!gueltig) return;
+    zustand.config[schluessel].tage = zahl;
+    aktualisiere({ ohneFelder: true });
+  };
+  tage.addEventListener('input', tageUebernehmen);
+  // Beim Verlassen einen unbrauchbaren Wert wieder auf den gültigen zurücksetzen.
+  tage.addEventListener('blur', () => {
+    tage.value = String(zustand.config[schluessel].tage);
+    tage.classList.remove('ungueltig');
   });
 
   const bereichsListe = knoten.querySelector('.bereiche-liste');
@@ -150,6 +178,8 @@ async function aktualisiere(optionen = {}) {
 
     if (!optionen.ohneFelder) {
       artikel.querySelector('.sola-start').value = daten.start || '';
+      const tageFeld = artikel.querySelector('.sola-tage');
+      if (document.activeElement !== tageFeld) tageFeld.value = String(daten.tage);
       for (const box of artikel.querySelectorAll('[data-bereich]')) {
         box.checked = Boolean(daten.bereiche[box.dataset.bereich]);
       }
@@ -271,7 +301,16 @@ async function erstellen() {
 async function speichern() {
   const ergebnis = await sola.configSpeichern(zustand.config);
   if (ergebnis.gespeichert) {
-    zeigeMeldungen('meldungen', [{ art: 'erfolg', text: `Konfiguration gespeichert: ${ergebnis.pfad}` }]);
+    const meldungen = [{ art: 'erfolg', text: `Konfiguration gespeichert: ${ergebnis.pfad}` }];
+    if (ergebnis.verlust && ergebnis.verlust.length > 0) {
+      meldungen.push({
+        art: 'warnung',
+        text:
+          `Das CSV-Format des Originals kennt nur Teens und Kids mit acht Tagen. Nicht gespeichert wurde: ${ergebnis.verlust.join('; ')}. ` +
+          'Für die vollständige Konfiguration bitte als JSON speichern.',
+      });
+    }
+    zeigeMeldungen('meldungen', meldungen);
   } else if (ergebnis.fehler) {
     zeigeMeldungen('meldungen', [{ art: 'fehler', text: `Speichern fehlgeschlagen: ${ergebnis.fehler}` }]);
   }

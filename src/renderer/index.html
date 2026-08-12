@@ -64,10 +64,7 @@
           </label>
           <label class="feld feld-schmal">
             <span>Sola</span>
-            <select id="presetSola">
-              <option value="Teens">Teens</option>
-              <option value="Kids">Kids</option>
-            </select>
+            <select id="presetSola"></select>
           </label>
           <label class="feld feld-schmal">
             <span>Jahr (2-stellig)</span>
@@ -124,10 +121,16 @@
           <span class="sola-titel"></span>
         </label>
         <div class="sola-inhalt">
-          <label class="feld">
-            <span>Startdatum (Tag 1)</span>
-            <input type="date" class="sola-start" />
-          </label>
+          <div class="sola-zeitraum">
+            <label class="feld">
+              <span>Startdatum (Tag 1)</span>
+              <input type="date" class="sola-start" />
+            </label>
+            <label class="feld feld-tage">
+              <span>Tage</span>
+              <input type="number" class="sola-tage" inputmode="numeric" step="1" />
+            </label>
+          </div>
           <fieldset class="bereiche">
             <legend>Bereiche</legend>
             <div class="bereiche-liste"></div>

@@ -52,9 +52,11 @@ kostenpflichtiges Apple-Developer- bzw. Code-Signing-Zertifikat.
 ## Benutzung
 
 1. **Zielordner** wählen — dort entsteht der Ordner `Sola_<Jahr>`.
-2. **Teensola und/oder Kidssola** anhaken, jeweils Startdatum (Tag 1) und
-   Bereiche wählen. Bei *Foto* bzw. *Video* die Namen eintragen; die
-   Namensfelder sind nur freigegeben, wenn der Bereich angewählt ist.
+2. **Solas anhaken** — Teens, Kids, SOFA und Sola next lassen sich einzeln oder
+   gemeinsam anlegen. Je Sola das Startdatum (Tag 1), die **Dauer in Tagen**
+   (1–31, voreingestellt 8) und die Bereiche wählen. Bei *Foto* bzw. *Video* die
+   Namen eintragen; die Namensfelder sind nur freigegeben, wenn der Bereich
+   angewählt ist.
 3. **Vorschau** prüfen und **Ordnerstruktur erstellen** klicken. Die Vorschau
    zeigt exakt das, was danach auf der Platte landet.
 4. Optional: **Lightroom-Vorgaben installieren** — Kürzel (z. B. `M.U.`), Sola
@@ -98,7 +100,9 @@ Sola_2026/
 │   ├── 06_Audio/                     (nur Tagesordner)
 │   ├── 07_Orga/
 │   └── 08_Allgemein/
-└── 02_Kids/                          (gleicher Aufbau)
+├── 02_Kids/                          (gleicher Aufbau)
+├── 03_SOFA/
+└── 04_Sola_next/
 ```
 
 Die Bereiche werden in der festen Reihenfolge *Foto, Video, Showfiles,
@@ -106,7 +110,14 @@ Instagram, Grafik, Audio, Orga, Allgemein* nummeriert — nur angewählte Bereic
 verbrauchen eine Nummer. Sind also nur *Video* und *Orga* gewählt, entstehen
 `01_Video` und `02_Orga`.
 
-Ein Sola dauert acht Tage (Tag 1 bis Tag 8), gerechnet ab dem Startdatum.
+Die Sola-Ordner sind **fest nummeriert** und hängen nicht an der Anwahl: Wer
+zuerst nur SOFA anlegt, bekommt `03_SOFA` — ergänzt man später Teens, kommt
+`01_Teens` daneben, statt dass sich Bestehendes verschiebt.
+
+Die Dauer ist je Sola einstellbar (1 bis 31 Tage, voreingestellt 8), gerechnet
+ab dem jeweiligen Startdatum. Die Solas dürfen unterschiedlich lang sein und zu
+verschiedenen Terminen stattfinden — nur das Jahr muss zusammenpassen, sonst
+fragt die App nach einer manuellen Eingabe.
 
 ### Abweichungen zum Windows-Original
 
@@ -130,6 +141,11 @@ Gespeichert wird wahlweise als **JSON** (Standard) oder als **CSV** im Format
 des Windows-Originals — CSV-Dateien aus der alten Version lassen sich also
 direkt laden. Beim Datum werden `dd-MM-yyyy`, `dd.MM.yyyy`, `MM/dd/yyyy` und
 ISO `yyyy-MM-dd` erkannt.
+
+Das alte CSV-Format kennt allerdings nur Teens und Kids mit acht Tagen. Wer
+SOFA, Sola next oder eine abweichende Dauer eingestellt hat und trotzdem als
+CSV speichert, bekommt beim Speichern aufgelistet, was dabei wegfällt — für die
+vollständige Konfiguration ist JSON das Format.
 
 ## Lightroom-Vorgaben
 
@@ -188,6 +204,8 @@ Ordnerstruktur in einem temporären Ordner an und prüft unter anderem:
 
 * die Vorschau zeigt genau den Baum, der danach auf der Platte liegt,
 * die Tagesordner sortieren nach Tag und stehen vor `LR Kataloge`,
+* alle vier Solas bekommen ihren festen Ordner, und die eingestellte Dauer
+  schlägt auf die Anzahl der Tagesordner durch,
 * eine eigene Vorgabe erscheint in der Tabelle, lässt sich abwählen und entfernen,
 * bei 1180, 760 und 620 px Fensterbreite scrollt die Seite nicht seitlich.
 

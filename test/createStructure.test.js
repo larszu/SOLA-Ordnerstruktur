@@ -9,7 +9,7 @@ const path = require('path');
 const { createStructure } = require('../src/core/createStructure');
 const { buildPlan, emptyConfig } = require('../src/core/structure');
 const { isValidName, isValidKuerzel, sanitizeSegment, compactNames } = require('../src/core/validate');
-const { berechneWoche, solaJahr, formatDate } = require('../src/core/dates');
+const { berechneWoche, solaJahr, formatDate, normalisiereTage } = require('../src/core/dates');
 
 function tempOrdner(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sola-'));
@@ -124,9 +124,43 @@ test('formatDate nutzt lokale Zeit, nicht UTC', () => {
   assert.equal(formatDate(new Date(2026, 0, 1)), '01-01-2026');
 });
 
-test('solaJahr meldet einen Konflikt', () => {
-  assert.equal(solaJahr({ teens: true, teenStart: '2026-06-13' }).jahr, '2026');
-  const konflikt = solaJahr({ teens: true, kids: true, teenStart: '2026-06-13', kidsStart: '2027-06-13' });
+test('solaJahr fasst beliebig viele Solas zusammen', () => {
+  assert.equal(solaJahr([{ label: 'Teens', start: '2026-06-13' }]).jahr, '2026');
+  assert.equal(
+    solaJahr([
+      { label: 'Teens', start: '2026-06-13' },
+      { label: 'SOFA', start: '2026-08-01' },
+      { label: 'Sola next', start: '2026-09-05' },
+    ]).jahr,
+    '2026',
+  );
+  assert.equal(solaJahr([]).jahr, '');
+  // Ein Sola ohne Startdatum zählt nicht mit.
+  assert.equal(solaJahr([{ label: 'Teens', start: '2026-06-13' }, { label: 'SOFA', start: '' }]).jahr, '2026');
+});
+
+test('solaJahr meldet einen Konflikt und benennt die Beteiligten', () => {
+  const konflikt = solaJahr([
+    { label: 'Teens', start: '2026-06-13' },
+    { label: 'Sola next', start: '2027-06-13' },
+  ]);
   assert.equal(konflikt.conflict, true);
   assert.equal(konflikt.jahr, '');
+  assert.deepEqual(konflikt.jahre, [
+    { label: 'Teens', jahr: '2026' },
+    { label: 'Sola next', jahr: '2027' },
+  ]);
+});
+
+test('normalisiereTage hält die Eingabe in den Grenzen', () => {
+  assert.equal(normalisiereTage(5), 5);
+  assert.equal(normalisiereTage(1), 1);
+  assert.equal(normalisiereTage(31), 31);
+  assert.equal(normalisiereTage(99), 31);
+  assert.equal(normalisiereTage(0), 8, 'unbrauchbar -> Standard');
+  assert.equal(normalisiereTage(-3), 8);
+  assert.equal(normalisiereTage('Unsinn'), 8);
+  assert.equal(normalisiereTage(undefined), 8);
+  assert.equal(normalisiereTage('6'), 6, 'Zeichenkette aus dem Formular');
+  assert.equal(normalisiereTage(6.4), 6, 'wird gerundet');
 });

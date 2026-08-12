@@ -219,7 +219,7 @@ input.ungueltig {
 
 .solas {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 18px;
 }
 
@@ -583,4 +583,23 @@ fieldset {
     flex: 1 0 auto;
     white-space: nowrap;
   }
+}
+
+/* Startdatum und Dauer stehen nebeneinander. Oben ausrichten, weil das
+   Datumsfeld durch sein Kalendersymbol höher baut als das Zahlenfeld. */
+.sola-zeitraum {
+  display: grid;
+  grid-template-columns: 1fr 88px;
+  gap: 10px;
+  align-items: start;
+}
+
+.sola-zeitraum input {
+  width: 100%;
+  /* Gleiche Höhe für beide Felder, unabhängig vom eingebauten Symbol. */
+  height: 34px;
+}
+
+.feld-tage input {
+  font-variant-numeric: tabular-nums;
 }
