@@ -1,11 +1,21 @@
 'use strict';
 
-const { BEREICHE, emptyConfig, normalizeConfig } = require('./structure');
-const { parseIsoDate, toIsoDate } = require('./dates');
+const { BEREICHE, SOLAS, emptyConfig, normalizeConfig } = require('./structure');
+const { parseIsoDate, toIsoDate, SOLA_TAGE } = require('./dates');
 
 const DL = ';';
 
-/** Spaltenreihenfolge der CSV – identisch zum Windows-Original (Alpha-v0.2.x). */
+/** Die beiden Solas, die im CSV-Format des Originals vorkommen. */
+const CSV_SOLAS = ['teens', 'kids'];
+
+/**
+ * Spaltenreihenfolge der CSV – identisch zum Windows-Original (Alpha-v0.2.x).
+ *
+ * Das Format kennt nur Teens und Kids und geht von acht Tagen aus. Es bleibt
+ * erhalten, damit alte Dateien weiter gelesen werden können; alles darüber
+ * hinaus (SOFA, Sola next, abweichende Dauer) passt nur ins JSON-Format.
+ * {@link csvVerlust} sagt vorab, was beim Speichern als CSV wegfiele.
+ */
 const CSV_HEADER = [
   'SolaJahr',
   'Teens',
@@ -160,6 +170,27 @@ function fromCsv(text) {
   return normalizeConfig(config);
 }
 
+/**
+ * Nennt alles, was das CSV-Format des Originals nicht abbilden kann.
+ * @param {import('./structure').Config} config
+ * @returns {string[]} leer, wenn die CSV verlustfrei wäre
+ */
+function csvVerlust(config) {
+  const c = normalizeConfig(config);
+  const verlust = [];
+
+  for (const sola of SOLAS) {
+    const daten = c[sola.key];
+    if (!daten.aktiv) continue;
+    if (!CSV_SOLAS.includes(sola.key)) {
+      verlust.push(`${sola.titel} (im CSV-Format nicht vorgesehen)`);
+    } else if (daten.tage !== SOLA_TAGE) {
+      verlust.push(`Dauer von ${sola.titel} (${daten.tage} statt ${SOLA_TAGE} Tage)`);
+    }
+  }
+  return verlust;
+}
+
 /** JSON-Fassung – das bevorzugte Format dieser App. */
 function toJson(config) {
   return `${JSON.stringify({ version: 1, ...normalizeConfig(config) }, null, 2)}\n`;
@@ -177,4 +208,4 @@ function parseConfig(text, dateiname = '') {
   return fromCsv(text);
 }
 
-module.exports = { CSV_HEADER, toCsv, fromCsv, toJson, fromJson, parseConfig, parseFlexibleDate };
+module.exports = { CSV_HEADER, CSV_SOLAS, toCsv, fromCsv, toJson, fromJson, parseConfig, parseFlexibleDate, csvVerlust };

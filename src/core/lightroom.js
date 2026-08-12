@@ -96,9 +96,19 @@ function patchExportPreset(inhalt, daten) {
  * @returns {{erfolg: boolean, installiert: string[], fehler: Array<{datei: string, grund: string}>,
  *            ziele: {developPresets: string, exportPresets: string}}}
  */
-function installPresets({ presetsDir, jahr, sola, kuerzel, ziele = lightroomPfade() }) {
+function installPresets({ vorgaben, jahr, sola, kuerzel, ziele = lightroomPfade() }) {
   const installiert = [];
   const fehler = [];
+  const aktive = (vorgaben || []).filter((v) => v.aktiv);
+
+  if (aktive.length === 0) {
+    return {
+      erfolg: false,
+      installiert,
+      fehler: [{ datei: '—', grund: 'Es ist keine Vorgabe angewählt.' }],
+      ziele,
+    };
+  }
 
   for (const ordner of [ziele.developPresets, ziele.exportPresets]) {
     try {
@@ -108,36 +118,34 @@ function installPresets({ presetsDir, jahr, sola, kuerzel, ziele = lightroomPfad
     }
   }
 
-  for (const preset of EXPORT_PRESETS) {
-    const quelle = path.join(presetsDir, preset.datei);
-    const ziel = path.join(ziele.exportPresets, preset.datei);
+  for (const vorgabe of aktive) {
+    const zielOrdner = vorgabe.typ === 'export' ? ziele.exportPresets : ziele.developPresets;
+    const ziel = path.join(zielOrdner, vorgabe.datei);
     try {
-      const roh = fs.readFileSync(quelle, 'utf8');
+      // Entwicklungsvorgaben werden unverändert kopiert; nur Exportvorgaben
+      // tragen Jahr, Sola und Kürzel im Dateinamen-Token.
+      if (vorgabe.typ !== 'export') {
+        fs.copyFileSync(vorgabe.pfad, ziel);
+        installiert.push(ziel);
+        continue;
+      }
+
+      const roh = fs.readFileSync(vorgabe.pfad, 'utf8');
       const { inhalt, fehlend } = patchExportPreset(roh, {
         jahr,
         sola,
         kuerzel,
-        lang: preset.lang,
-        kurz: preset.kurz,
+        lang: vorgabe.lang,
+        kurz: vorgabe.kurz,
       });
       if (fehlend.length > 0) {
-        fehler.push({ datei: preset.datei, grund: `Nicht gefunden: ${fehlend.join(', ')}` });
+        fehler.push({ datei: vorgabe.datei, grund: `Nicht gefunden: ${fehlend.join(', ')}` });
         continue;
       }
       fs.writeFileSync(ziel, inhalt, 'utf8');
       installiert.push(ziel);
     } catch (err) {
-      fehler.push({ datei: preset.datei, grund: err.message });
-    }
-  }
-
-  for (const datei of DEVELOP_PRESETS) {
-    const ziel = path.join(ziele.developPresets, datei);
-    try {
-      fs.copyFileSync(path.join(presetsDir, datei), ziel);
-      installiert.push(ziel);
-    } catch (err) {
-      fehler.push({ datei, grund: err.message });
+      fehler.push({ datei: vorgabe.datei, grund: err.message });
     }
   }
 

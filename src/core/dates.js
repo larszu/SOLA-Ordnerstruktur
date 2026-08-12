@@ -1,7 +1,18 @@
 'use strict';
 
-/** Anzahl der Tage, die ein Sola dauert (Tag 1 bis Tag 8). */
+/** Voreingestellte Dauer eines Solas in Tagen. */
 const SOLA_TAGE = 8;
+
+/** Sinnvolle Grenzen für die einstellbare Dauer. */
+const MIN_TAGE = 1;
+const MAX_TAGE = 31;
+
+/** Begrenzt eine eingegebene Tagesanzahl auf den zulässigen Bereich. */
+function normalisiereTage(wert, standard = SOLA_TAGE) {
+  const zahl = Math.round(Number(wert));
+  if (!Number.isFinite(zahl) || zahl <= 0) return standard;
+  return Math.min(MAX_TAGE, Math.max(MIN_TAGE, zahl));
+}
 
 /**
  * Wandelt ein Datum in das im Projekt genutzte Format `dd-MM-yyyy`.
@@ -56,22 +67,40 @@ function berechneWoche(start, tage = SOLA_TAGE) {
 }
 
 /**
- * Ermittelt das Solajahr aus den angewählten Startdaten.
- * Weichen Teens und Kids voneinander ab, wird `conflict` gesetzt – die
- * Oberfläche fragt dann nach einer manuellen Eingabe.
- * @param {{teens?: boolean, kids?: boolean, teenStart?: string, kidsStart?: string}} config
- * @returns {{jahr: string, conflict: boolean, teenJahr: string, kidsJahr: string}}
+ * Ermittelt das Solajahr aus den Startdaten der angewählten Solas.
+ * Liegen sie in verschiedenen Jahren, wird `conflict` gesetzt und `jahre`
+ * listet die Beteiligten – die Oberfläche fragt dann nach einer manuellen
+ * Eingabe und kann benennen, welche Solas auseinanderfallen.
+ *
+ * @param {Array<{label: string, start: string}>} solas Nur die angewählten
+ * @returns {{jahr: string, conflict: boolean, jahre: Array<{label: string, jahr: string}>}}
  */
-function solaJahr(config) {
-  const teenDate = config.teens ? parseIsoDate(config.teenStart) : null;
-  const kidsDate = config.kids ? parseIsoDate(config.kidsStart) : null;
-  const teenJahr = teenDate ? String(teenDate.getFullYear()) : '';
-  const kidsJahr = kidsDate ? String(kidsDate.getFullYear()) : '';
+function solaJahr(solas) {
+  const jahre = (solas || [])
+    .map((s) => {
+      const datum = parseIsoDate(s.start);
+      return { label: s.label, jahr: datum ? String(datum.getFullYear()) : '' };
+    })
+    .filter((e) => e.jahr);
 
-  if (teenJahr && kidsJahr) {
-    return { jahr: teenJahr === kidsJahr ? teenJahr : '', conflict: teenJahr !== kidsJahr, teenJahr, kidsJahr };
-  }
-  return { jahr: teenJahr || kidsJahr, conflict: false, teenJahr, kidsJahr };
+  if (jahre.length === 0) return { jahr: '', conflict: false, jahre };
+
+  const verschieden = new Set(jahre.map((e) => e.jahr));
+  return {
+    jahr: verschieden.size === 1 ? jahre[0].jahr : '',
+    conflict: verschieden.size > 1,
+    jahre,
+  };
 }
 
-module.exports = { SOLA_TAGE, formatDate, parseIsoDate, toIsoDate, berechneWoche, solaJahr };
+module.exports = {
+  SOLA_TAGE,
+  MIN_TAGE,
+  MAX_TAGE,
+  normalisiereTage,
+  formatDate,
+  parseIsoDate,
+  toIsoDate,
+  berechneWoche,
+  solaJahr,
+};
