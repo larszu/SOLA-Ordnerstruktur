@@ -78,8 +78,32 @@ jobs:
       # Bei einem v*-Tag lädt electron-builder die Pakete selbst in einen
       # GitHub-Release-Entwurf hoch. Das läuft am Artefaktspeicher vorbei, der
       # ein eigenes Kontingent hat und für Releases nichts beiträgt.
+      #
+      # electron-builder holt NSIS- und Signierwerkzeuge zur Bauzeit aus dem
+      # Netz. Dieser Host antwortet gelegentlich mit 503 oder bricht die
+      # Verbindung ab — beides hat hier schon Builds gekippt, die inhaltlich
+      # in Ordnung waren. Ein einzelner Fehlschlag ist deshalb kein Ergebnis,
+      # sondern ein Grund für einen neuen Anlauf.
       - name: Pakete bauen
-        run: npx electron-builder --${{ matrix.plattform }} --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        shell: bash
+        run: |
+          set -o pipefail
+          bauen() {
+            npx electron-builder --${{ matrix.plattform }} \
+              --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+          }
+          for versuch in 1 2 3; do
+            if bauen; then exit 0; fi
+            if [ "$versuch" -eq 3 ]; then
+              echo "::error::electron-builder ist in drei Anläufen gescheitert."
+              exit 1
+            fi
+            wartezeit=$((versuch * 20))
+            echo "::warning::Anlauf $versuch fehlgeschlagen, neuer Versuch in ${wartezeit}s."
+            # Halbfertige Ausgaben wegräumen, damit der nächste Anlauf sauber startet.
+            rm -rf dist
+            sleep "$wartezeit"
+          done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
