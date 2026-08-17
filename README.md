@@ -28,7 +28,8 @@ der tatsächliche Stand der App.
 ## Installation
 
 Fertige Pakete liegen unter [Releases](../../releases). Die Dateien entstehen
-automatisch per GitHub Actions (`.github/workflows/build.yml`) für jeden Tag `v*`.
+automatisch per GitHub Actions (`.github/workflows/release.yml`), sobald ein Tag
+`v*` geschoben wird.
 
 | Plattform | Datei |
 | --- | --- |
@@ -196,6 +197,33 @@ npm run smoke:mac  # derselbe Durchlauf auf macOS/Windows, mit sichtbarem Fenste
 npm run dist:mac   # .dmg bauen (nur auf macOS)
 npm run dist:win   # .exe bauen (auf Windows; via wine auch anderswo)
 ```
+
+### Ein Release herausgeben
+
+Die Version in der `package.json` ist die Quelle der Wahrheit — electron-builder
+benennt die Pakete danach. Der Tag muss dazu passen, sonst bricht der Lauf
+gleich zu Beginn ab, statt vier falsch benannte Dateien zu veröffentlichen.
+
+```bash
+npm version 1.1.0        # setzt package.json und legt den Tag v1.1.0 an
+git push origin main --follow-tags
+```
+
+Danach läuft `.github/workflows/release.yml` und
+
+1. prüft Tests und die Übereinstimmung von Tag und Version,
+2. legt einen **Release-Entwurf** an (Tags mit Suffix wie `v1.1.0-beta.1`
+   werden als Vorabversion markiert),
+3. baut auf macOS und Windows und hängt die vier Pakete an den Entwurf,
+4. gibt den Entwurf frei — aber nur, wenn wirklich alle vier Dateien da sind.
+
+Scheitert eine Plattform, bleibt der Entwurf unveröffentlicht liegen; niemand
+lädt dann ein halbes Release herunter. Nach dem Beheben lässt sich der Lauf
+unter *Actions → Release → Run workflow* mit demselben Tag wiederholen — der
+bestehende Entwurf wird weiterverwendet.
+
+`.github/workflows/build.yml` baut dieselben Pakete bei jedem Push, aber ohne
+zu veröffentlichen; die Dateien hängen dort 14 Tage als Artefakt am Lauf.
 
 ### Headless-Durchlauf
 

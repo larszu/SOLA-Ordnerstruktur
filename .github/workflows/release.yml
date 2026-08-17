@@ -1,0 +1,200 @@
+name: Release
+
+# Ein Tag `v*` ist der Auslöser für ein Release — sonst nichts. Der reguläre
+# CI-Lauf (build.yml) baut die Pakete zwar auch, veröffentlicht sie aber nie;
+# beides zugleich würde denselben Release doppelt bespielen.
+on:
+  push:
+    tags: ['v*']
+  # Zum Nachholen, falls ein Lauf hängengeblieben ist: Tag von Hand eintragen.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Vorhandener Tag, z. B. v1.0.0'
+        required: true
+
+# Die Jobs legen den Release an und hängen die Pakete daran.
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  pruefen:
+    name: Tests und Version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+      # electron-builder benennt die Pakete nach der Version aus der
+      # package.json, nicht nach dem Tag. Läuft beides auseinander, trägt ein
+      # Release `v1.1.0` Dateien namens `…-1.0.0.dmg`. Das fällt erst nach dem
+      # kompletten Bau auf — deshalb hier, vor allem anderen.
+      - name: Tag gegen package.json prüfen
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG passt nicht zur Version $version in package.json."
+            exit 1
+          fi
+          echo "Version $version, Tag $TAG — passt."
+
+  entwurf:
+    name: Release-Entwurf anlegen
+    needs: pruefen
+    runs-on: ubuntu-latest
+    steps:
+      # Der Entwurf entsteht vor den Bauläufen, damit macOS und Windows ihre
+      # Pakete in denselben Release hängen. Legte ihn jeder Job selbst an,
+      # entstünden bei gleichzeitigem Lauf zwei Entwürfe zum selben Tag.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - name: Entwurf anlegen, falls noch keiner besteht
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG besteht bereits — wird weiterverwendet."
+            exit 0
+          fi
+          # Ein Tag mit Suffix (v1.0.0-beta.1) wird als Vorabversion markiert.
+          vorab=()
+          case "$TAG" in *-*) vorab=(--prerelease);; esac
+          gh release create "$TAG" \
+            --draft \
+            --title "SOLA Ordnerstruktur ${TAG#v}" \
+            --generate-notes \
+            "${vorab[@]}"
+
+  bauen:
+    name: ${{ matrix.name }}
+    needs: entwurf
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: macOS (dmg, arm64 + x64)
+            plattform: mac
+          - os: windows-latest
+            name: Windows (Setup + portable exe)
+            plattform: win
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # electron-builder wird direkt aufgerufen, nicht über `npm run`: npm
+      # würde `--publish` als eigenes Flag schlucken und nur den Wert
+      # weiterreichen, den electron-builder dann als Bauziel liest.
+      #
+      # `--publish always` lädt die Pakete unmittelbar in den Entwurf oben.
+      # Das läuft am Artefaktspeicher vorbei, der ein eigenes Kontingent hat
+      # und für Releases nichts beiträgt.
+      #
+      # Wohin veröffentlicht wird, steht per `-c.publish.*` fest: immer das
+      # Repository, in dem der Lauf stattfindet. Ohne diese Angabe zöge
+      # electron-builder die `repository`-URL aus der package.json heran — die
+      # zeigt nach einer Umbenennung des Repositorys ins Leere.
+      #
+      # Ohne Signaturzertifikate entstehen unsignierte Pakete. Das ist gewollt —
+      # die Installationshinweise stehen in der README.
+      #
+      # electron-builder holt NSIS- und Signierwerkzeuge zur Bauzeit aus dem
+      # Netz. Dieser Host antwortet gelegentlich mit 503 oder bricht die
+      # Verbindung ab — beides hat hier schon Builds gekippt, die inhaltlich in
+      # Ordnung waren. Ein einzelner Fehlschlag ist deshalb kein Ergebnis,
+      # sondern ein Grund für einen neuen Anlauf.
+      - name: Pakete bauen und an den Release hängen
+        shell: bash
+        run: |
+          set -o pipefail
+          for versuch in 1 2 3; do
+            if npx electron-builder --${{ matrix.plattform }} --publish always \
+                 -c.publish.provider=github \
+                 -c.publish.owner="${GITHUB_REPOSITORY%%/*}" \
+                 -c.publish.repo="${GITHUB_REPOSITORY#*/}"; then
+              exit 0
+            fi
+            if [ "$versuch" -eq 3 ]; then
+              echo "::error::electron-builder ist in drei Anläufen gescheitert."
+              exit 1
+            fi
+            wartezeit=$((versuch * 20))
+            echo "::warning::Anlauf $versuch fehlgeschlagen, neuer Versuch in ${wartezeit}s."
+            # Halbfertige Ausgaben wegräumen, damit der nächste Anlauf sauber startet.
+            rm -rf dist
+            sleep "$wartezeit"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # Belegt im Log, dass der Build wirklich etwas produziert hat. `nullglob`
+      # ist nötig, weil je nach Plattform nur eines der beiden Muster zutrifft;
+      # ohne die Option würde `ls` über das unaufgelöste Muster stolpern.
+      - name: Gebaute Pakete auflisten
+        shell: bash
+        run: |
+          shopt -s nullglob
+          pakete=(dist/*.dmg dist/*.exe)
+          if [ ${#pakete[@]} -eq 0 ]; then
+            echo "Es wurde kein Paket gebaut."
+            exit 1
+          fi
+          ls -lh "${pakete[@]}"
+
+  veroeffentlichen:
+    name: Release veröffentlichen
+    needs: bauen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      # Erst wenn beide Plattformen geliefert haben, wird aus dem Entwurf ein
+      # sichtbarer Release. Bricht ein Bau ab, bleibt der Entwurf liegen und
+      # niemand lädt ein halbes Release herunter.
+      - name: Vollständigkeit prüfen und Entwurf freigeben
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          erwartet=(
+            "SOLA-Ordnerstruktur-$version-arm64.dmg"
+            "SOLA-Ordnerstruktur-$version-x64.dmg"
+            "SOLA-Ordnerstruktur-$version-x64-Setup.exe"
+            "SOLA-Ordnerstruktur-$version-x64-portable.exe"
+          )
+          vorhanden=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+          echo "Am Release hängen:"; echo "$vorhanden"
+          fehlt=0
+          for datei in "${erwartet[@]}"; do
+            if ! grep -qxF "$datei" <<<"$vorhanden"; then
+              echo "::error::$datei fehlt am Release."
+              fehlt=1
+            fi
+          done
+          [ "$fehlt" -eq 0 ] || exit 1
+          gh release edit "$TAG" --draft=false
+          echo "Release $TAG ist veröffentlicht."

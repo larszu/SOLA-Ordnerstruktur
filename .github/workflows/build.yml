@@ -1,9 +1,10 @@
 name: Build
 
+# Prüft jeden Stand während der Entwicklung. Releases entstehen nicht hier,
+# sondern in release.yml, sobald ein Tag `v*` geschoben wird.
 on:
   push:
     branches: ['**']
-    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -75,9 +76,8 @@ jobs:
       # Ohne Signaturzertifikate entstehen unsignierte Pakete. Das ist gewollt –
       # die Installationshinweise stehen in der README.
       #
-      # Bei einem v*-Tag lädt electron-builder die Pakete selbst in einen
-      # GitHub-Release-Entwurf hoch. Das läuft am Artefaktspeicher vorbei, der
-      # ein eigenes Kontingent hat und für Releases nichts beiträgt.
+      # `--publish never`: Dieser Lauf belegt nur, dass sich die App bauen
+      # lässt. Veröffentlicht wird ausschließlich aus release.yml heraus.
       #
       # electron-builder holt NSIS- und Signierwerkzeuge zur Bauzeit aus dem
       # Netz. Dieser Host antwortet gelegentlich mit 503 oder bricht die
@@ -88,12 +88,10 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          bauen() {
-            npx electron-builder --${{ matrix.plattform }} \
-              --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
-          }
           for versuch in 1 2 3; do
-            if bauen; then exit 0; fi
+            if npx electron-builder --${{ matrix.plattform }} --publish never; then
+              exit 0
+            fi
             if [ "$versuch" -eq 3 ]; then
               echo "::error::electron-builder ist in drei Anläufen gescheitert."
               exit 1
@@ -105,7 +103,6 @@ jobs:
             sleep "$wartezeit"
           done
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       # Belegt im Log, dass der Build wirklich etwas produziert hat – unabhängig
@@ -124,7 +121,7 @@ jobs:
           ls -lh "${pakete[@]}"
 
       # Die Artefakte sind nur zum Reinschauen in einen PR-Build gedacht; die
-      # Releases entstehen oben direkt. Ist das Artefaktkontingent des Kontos
+      # Releases entstehen in release.yml. Ist das Artefaktkontingent des Kontos
       # voll, soll das einen ansonsten grünen Build nicht rot färben – der
       # Schritt wird dann als fehlgeschlagen angezeigt, der Job bleibt grün.
       - name: Pakete als Artefakt ablegen
