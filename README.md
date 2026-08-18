@@ -200,18 +200,23 @@ npm run dist:win   # .exe bauen (auf Windows; via wine auch anderswo)
 
 ### Ein Release herausgeben
 
-Die Version in der `package.json` ist die Quelle der Wahrheit — electron-builder
-benennt die Pakete danach. Der Tag muss dazu passen, sonst bricht der Lauf
-gleich zu Beginn ab, statt vier falsch benannte Dateien zu veröffentlichen.
+Der Tag ist die Quelle der Wahrheit: Aus `v1.1.0` wird die Version `1.1.0`, und
+mit der benennt electron-builder die Pakete. Der Lauf schreibt sie vor dem Bau
+selbst in die `package.json` — eine dort vergessene Zeile hält also kein Release
+mehr auf. Der Tag muss dafür nur eine brauchbare Versionsnummer ergeben
+(`v<major>.<minor>.<patch>`, Suffixe wie `-beta.1` erlaubt).
 
 ```bash
 npm version 1.1.0        # setzt package.json und legt den Tag v1.1.0 an
 git push origin main --follow-tags
 ```
 
+`npm version` hält beides von vornherein beieinander und ist deshalb der
+bequemste Weg; ein von Hand gesetzter Tag tut es aber auch.
+
 Danach läuft `.github/workflows/release.yml` und
 
-1. prüft Tests und die Übereinstimmung von Tag und Version,
+1. prüft die Tests und leitet die Version aus dem Tag ab,
 2. legt einen **Release-Entwurf** an (Tags mit Suffix wie `v1.1.0-beta.1`
    werden als Vorabversion markiert),
 3. baut auf macOS und Windows und hängt die vier Pakete an den Entwurf,

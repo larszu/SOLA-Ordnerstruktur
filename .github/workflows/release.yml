@@ -24,6 +24,8 @@ jobs:
   pruefen:
     name: Tests und Version
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,18 +38,29 @@ jobs:
       - run: npm test
 
       # electron-builder benennt die Pakete nach der Version aus der
-      # package.json, nicht nach dem Tag. Läuft beides auseinander, trägt ein
-      # Release `v1.1.0` Dateien namens `…-1.0.0.dmg`. Das fällt erst nach dem
-      # kompletten Bau auf — deshalb hier, vor allem anderen.
-      - name: Tag gegen package.json prüfen
+      # package.json. Maßgeblich ist aber der Tag: er steht am Release und in
+      # den Downloadlinks. Deshalb wird die Version vor dem Bau aus dem Tag
+      # gesetzt (siehe Job „bauen“), statt den Lauf abzubrechen, wenn beides
+      # auseinanderläuft — ein Release an einem sonst fehlerfreien Stand soll
+      # nicht an einer vergessenen Zeile in der package.json scheitern.
+      #
+      # Was der Tag dagegen hergeben muss, ist eine brauchbare Versionsnummer:
+      # electron-builder verlangt semver, und die Nummer landet im Dateinamen.
+      - name: Version aus dem Tag ableiten
+        id: version
         shell: bash
         run: |
-          version=$(node -p "require('./package.json').version")
-          if [ "$TAG" != "v$version" ]; then
-            echo "::error::Tag $TAG passt nicht zur Version $version in package.json."
+          version="${TAG#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag $TAG ergibt keine gültige Versionsnummer. Erwartet wird v<major>.<minor>.<patch>, z. B. v1.1.0."
             exit 1
           fi
-          echo "Version $version, Tag $TAG — passt."
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Release $TAG wird als Version $version gebaut."
+          paket=$(node -p "require('./package.json').version")
+          if [ "$paket" != "$version" ]; then
+            echo "::notice::In der package.json steht $paket; für diesen Lauf gilt $version aus dem Tag."
+          fi
 
   entwurf:
     name: Release-Entwurf anlegen
@@ -81,7 +94,7 @@ jobs:
 
   bauen:
     name: ${{ matrix.name }}
-    needs: entwurf
+    needs: [pruefen, entwurf]
     strategy:
       fail-fast: false
       matrix:
@@ -93,6 +106,8 @@ jobs:
             name: Windows (Setup + portable exe)
             plattform: win
     runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.pruefen.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,18 +118,26 @@ jobs:
           cache: npm
       - run: npm ci
 
+      # Nach `npm ci`, nicht davor: npm vergleicht package.json und
+      # package-lock.json und stolpert über eine Version, die nur in einer von
+      # beiden Dateien steht. Auf den Bau selbst wirkt die Reihenfolge nicht —
+      # electron-builder liest die package.json erst beim Paketieren.
+      - name: Version aus dem Tag in die package.json schreiben
+        shell: bash
+        run: |
+          npm pkg set version="$VERSION"
+          echo "Gebaut wird Version $(node -p "require('./package.json').version")."
+
       # electron-builder wird direkt aufgerufen, nicht über `npm run`: npm
       # würde `--publish` als eigenes Flag schlucken und nur den Wert
       # weiterreichen, den electron-builder dann als Bauziel liest.
       #
-      # `--publish always` lädt die Pakete unmittelbar in den Entwurf oben.
-      # Das läuft am Artefaktspeicher vorbei, der ein eigenes Kontingent hat
-      # und für Releases nichts beiträgt.
-      #
-      # Wohin veröffentlicht wird, steht per `-c.publish.*` fest: immer das
-      # Repository, in dem der Lauf stattfindet. Ohne diese Angabe zöge
-      # electron-builder die `repository`-URL aus der package.json heran — die
-      # zeigt nach einer Umbenennung des Repositorys ins Leere.
+      # `--publish never`: Hochgeladen wird im Schritt darunter von Hand. Der
+      # eingebaute Publisher sucht sich seinen Release selbst und lädt neben
+      # den Paketen auch `.blockmap` und `latest-*.yml` hoch, die für eine App
+      # ohne Selbstaktualisierung niemand braucht. Mit `gh release upload`
+      # steht dagegen genau fest, welche Dateien am Release landen — und der
+      # Schritt scheitert sichtbar, wenn es die falschen sind.
       #
       # Ohne Signaturzertifikate entstehen unsignierte Pakete. Das ist gewollt —
       # die Installationshinweise stehen in der README.
@@ -124,15 +147,12 @@ jobs:
       # Verbindung ab — beides hat hier schon Builds gekippt, die inhaltlich in
       # Ordnung waren. Ein einzelner Fehlschlag ist deshalb kein Ergebnis,
       # sondern ein Grund für einen neuen Anlauf.
-      - name: Pakete bauen und an den Release hängen
+      - name: Pakete bauen
         shell: bash
         run: |
           set -o pipefail
           for versuch in 1 2 3; do
-            if npx electron-builder --${{ matrix.plattform }} --publish always \
-                 -c.publish.provider=github \
-                 -c.publish.owner="${GITHUB_REPOSITORY%%/*}" \
-                 -c.publish.repo="${GITHUB_REPOSITORY#*/}"; then
+            if npx electron-builder --${{ matrix.plattform }} --publish never; then
               exit 0
             fi
             if [ "$versuch" -eq 3 ]; then
@@ -146,31 +166,37 @@ jobs:
             sleep "$wartezeit"
           done
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      # Belegt im Log, dass der Build wirklich etwas produziert hat. `nullglob`
-      # ist nötig, weil je nach Plattform nur eines der beiden Muster zutrifft;
-      # ohne die Option würde `ls` über das unaufgelöste Muster stolpern.
-      - name: Gebaute Pakete auflisten
+      # `nullglob` ist nötig, weil je nach Plattform nur eines der beiden
+      # Muster zutrifft; ohne die Option würde die Schleife über das
+      # unaufgelöste Muster stolpern.
+      #
+      # `--clobber` ersetzt eine gleichnamige Datei, die von einem
+      # abgebrochenen früheren Lauf am Release hängt. Ohne die Option bräche
+      # jeder Wiederholungslauf mit „asset already exists“ ab.
+      - name: Pakete an den Release hängen
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           shopt -s nullglob
           pakete=(dist/*.dmg dist/*.exe)
           if [ ${#pakete[@]} -eq 0 ]; then
-            echo "Es wurde kein Paket gebaut."
+            echo "::error::Es wurde kein Paket gebaut."
             exit 1
           fi
           ls -lh "${pakete[@]}"
+          gh release upload "$TAG" "${pakete[@]}" --clobber
+          echo "Hochgeladen: ${pakete[*]}"
 
   veroeffentlichen:
     name: Release veröffentlichen
-    needs: bauen
+    needs: [pruefen, bauen]
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.pruefen.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG }}
       # Erst wenn beide Plattformen geliefert haben, wird aus dem Entwurf ein
       # sichtbarer Release. Bricht ein Bau ab, bleibt der Entwurf liegen und
       # niemand lädt ein halbes Release herunter.
@@ -178,23 +204,31 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          version=$(node -p "require('./package.json').version")
-          erwartet=(
-            "SOLA-Ordnerstruktur-$version-arm64.dmg"
-            "SOLA-Ordnerstruktur-$version-x64.dmg"
-            "SOLA-Ordnerstruktur-$version-x64-Setup.exe"
-            "SOLA-Ordnerstruktur-$version-x64-portable.exe"
-          )
           vorhanden=$(gh release view "$TAG" --json assets --jq '.assets[].name')
           echo "Am Release hängen:"; echo "$vorhanden"
+
+          # Geprüft wird, was am Ende zählt: zwei .dmg (arm64 und x64) und zwei
+          # .exe (Installer und portable), alle mit der Version aus dem Tag im
+          # Namen. Die genauen Namen legt electron-builder über `artifactName`
+          # in der package.json fest — sie hier ein zweites Mal auszuschreiben
+          # hieße, dieselbe Regel an zwei Stellen zu pflegen; weicht eine ab,
+          # bliebe ein vollständiges Release grundlos liegen.
+          dmg=$(grep -c -E "^SOLA-Ordnerstruktur-$VERSION[-.].*\\.dmg$" <<<"$vorhanden" || true)
+          exe=$(grep -c -E "^SOLA-Ordnerstruktur-$VERSION[-.].*\\.exe$" <<<"$vorhanden" || true)
+          echo "Gefunden: $dmg .dmg, $exe .exe zur Version $VERSION."
+
           fehlt=0
-          for datei in "${erwartet[@]}"; do
-            if ! grep -qxF "$datei" <<<"$vorhanden"; then
-              echo "::error::$datei fehlt am Release."
-              fehlt=1
-            fi
-          done
+          if [ "$dmg" -lt 2 ]; then
+            echo "::error::Es hängen $dmg .dmg-Dateien zur Version $VERSION am Release, erwartet werden zwei (arm64 und x64)."
+            fehlt=1
+          fi
+          if [ "$exe" -lt 2 ]; then
+            echo "::error::Es hängen $exe .exe-Dateien zur Version $VERSION am Release, erwartet werden zwei (Setup und portable)."
+            fehlt=1
+          fi
           [ "$fehlt" -eq 0 ] || exit 1
+
           gh release edit "$TAG" --draft=false
           echo "Release $TAG ist veröffentlicht."
