@@ -268,6 +268,13 @@ verändert dabei keine Dateien, es wird nur zum Lesen der Metadaten aufgerufen.
 Videos aus QuickTime (`.mov`, `.mp4`) werden mit `-api QuickTimeUTC` von UTC auf die
 lokale Zeit umgerechnet, damit sie im richtigen Tagesordner landen.
 
+## Gestaltung
+
+Die App folgt dem Corporate Design von **Lars Zumpe** — dieselbe Optik wie der
+[LZ-Sortierer](https://github.com/larszu/lz-sortierer): Deep-Navy-Kopf, Papier-Hintergrund,
+Zumpe-Navy-Text und die Funktionsfarben Erfolg/Hinweis/Fehler. Die Farbtokens stehen
+oben in `src/renderer/styles.css`.
+
 ## Entwicklung
 
 ```bash

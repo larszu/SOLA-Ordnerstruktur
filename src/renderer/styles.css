@@ -1,38 +1,38 @@
-:root {
-  --bg: #f4f5f7;
-  --karte: #ffffff;
-  --rand: #dfe3e8;
-  --text: #1d2129;
-  --gedaempft: #61686f;
-  --akzent: #2f6f4f;
-  --akzent-hell: #e8f2ec;
-  --warnung: #8a5a00;
-  --warnung-hell: #fdf3e0;
-  --fehler: #a12a24;
-  --fehler-hell: #fbeceb;
-  --erfolg: #1f6b3f;
-  --erfolg-hell: #e7f4ec;
-  --radius: 10px;
-  --schrift: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+/* Lars Zumpe CI: Zumpe Navy #1D324F, Deep Navy #132040, Eisblau #E1ECEF,
+   Stahlblau #8C9CB3, Schiefer #5C6B85, Papier #F6F5F0.
+   Funktionsfarben: Erfolg #2F7D5C, Hinweis #C8892B, Fehler #B04A3F.
+   Schrift: Public Sans. Dieselbe Optik wie der LZ-Sortierer. */
+@font-face {
+  font-family: 'Public Sans';
+  src: local('Public Sans');
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1b1d21;
-    --karte: #24272c;
-    --rand: #383c43;
-    --text: #e9eaec;
-    --gedaempft: #a3a9b1;
-    --akzent: #6ab98d;
-    --akzent-hell: #23342b;
-    --warnung: #e0b060;
-    --warnung-hell: #33291a;
-    --fehler: #e98d87;
-    --fehler-hell: #33211f;
-    --erfolg: #7bc79b;
-    --erfolg-hell: #1e2f25;
-  }
+:root {
+  /* CI-Grundfarben */
+  --navy: #1d324f;
+  --deep: #132040;
+  --eis: #e1ecef;
+  --stahl: #8c9cb3;
+  --schiefer: #5c6b85;
+  --papier: #f6f5f0;
+
+  /* Rollen der Oberfläche, auf die CI abgebildet */
+  --bg: var(--papier);
+  --karte: #ffffff;
+  --rand: var(--eis);
+  --text: var(--navy);
+  --gedaempft: var(--schiefer);
+  --akzent: var(--navy);
+  --akzent-hell: var(--eis);
+  --warnung: #c8892b;
+  --warnung-hell: #fbf0de;
+  --fehler: #b04a3f;
+  --fehler-hell: #f7e7e4;
+  --erfolg: #2f7d5c;
+  --erfolg-hell: #e5f0ea;
+  --radius: 8px;
+  --schrift: 'Public Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 * {
@@ -197,7 +197,7 @@ select {
   border-radius: 6px;
   background: var(--karte);
   color: var(--text);
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 input:focus-visible,
@@ -769,4 +769,56 @@ fieldset {
 
 .spalte-kat {
   width: 96px;
+}
+
+/* --- Lars Zumpe CI: Kopf und Feinschliff --------------------------------- */
+
+/* Der Fensterkopf trägt die Marke: Deep Navy mit weißer Schrift. */
+.kopf {
+  background: var(--deep);
+  border-bottom: none;
+  color: #fff;
+}
+
+.kopf h1 {
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.kopf-titel p {
+  color: var(--stahl);
+}
+
+.version {
+  color: var(--stahl);
+}
+
+/* Knöpfe im dunklen Kopf: heller Rahmen auf Navy, füllen beim Überfahren. */
+.kopf .knopf {
+  background: transparent;
+  border-color: var(--stahl);
+  color: var(--eis);
+}
+
+.kopf .knopf:hover:not(:disabled) {
+  background: var(--eis);
+  border-color: var(--eis);
+  color: var(--navy);
+}
+
+/* Primärknopf im Navy-Ton der CI, mit etwas mehr Gewicht. */
+.knopf-primaer {
+  font-weight: 600;
+}
+
+.knopf-primaer:hover:not(:disabled) {
+  background: var(--deep);
+  filter: none;
+}
+
+/* Kennzahlen-Kacheln: Papierrahmen wie im LZ-Sortierer. */
+.kachel {
+  background: #fff;
+  border-color: var(--eis);
 }

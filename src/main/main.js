@@ -48,7 +48,7 @@ function createWindow() {
     minWidth: 600,
     minHeight: 560,
     title: 'SOLA Ordnerstruktur',
-    backgroundColor: '#f4f5f7',
+    backgroundColor: '#f6f5f0',
     // Auf macOS sitzt die Ampel im eigenen Header, unter Windows bleibt die
     // Systemleiste stehen.
     titleBarStyle: IST_MAC ? 'hiddenInset' : 'default',
@@ -300,7 +300,7 @@ function oeffneImportFenster() {
     minWidth: 760,
     minHeight: 560,
     title: 'Fotos und Videos importieren',
-    backgroundColor: '#f4f5f7',
+    backgroundColor: '#f6f5f0',
     parent: fenster || undefined,
     titleBarStyle: IST_MAC ? 'hiddenInset' : 'default',
     webPreferences: {
