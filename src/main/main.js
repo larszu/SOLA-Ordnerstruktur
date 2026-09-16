@@ -47,7 +47,7 @@ function createWindow() {
     height: 900,
     minWidth: 600,
     minHeight: 560,
-    title: 'SOLA Ordnerstruktur',
+    title: 'LZ Ordnerstruktur',
     backgroundColor: '#f6f5f0',
     // Auf macOS sitzt die Ampel im eigenen Header, unter Windows bleibt die
     // Systemleiste stehen.
@@ -109,7 +109,7 @@ function buildMenu() {
       submenu: [
         {
           label: 'Projekt auf GitHub',
-          click: () => shell.openExternal('https://github.com/larszu/geklaute-ordnerstruktur-mac-'),
+          click: () => shell.openExternal('https://github.com/larszu/SOLA-Ordnerstruktur'),
         },
         {
           label: 'Original für Windows (TH0RB3Nger)',

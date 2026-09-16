@@ -1,12 +1,12 @@
 {
-  "name": "sola-ordnerstruktur",
-  "productName": "SOLA Ordnerstruktur",
+  "name": "lz-ordnerstruktur",
+  "productName": "LZ Ordnerstruktur",
   "version": "1.0.0",
-  "description": "Legt die Ordnerstruktur für das Sola-Multimedia-Team an und installiert die Lightroom-Vorgaben — für macOS und Windows.",
+  "description": "Legt die Sola-Ordnerstruktur an, installiert die Lightroom-Vorgaben und sortiert Fotos und Videos von Kamera oder SD-Karte direkt in die richtigen Ordner — für macOS und Windows.",
   "author": "Sola Multimedia Team",
   "repository": {
     "type": "git",
-    "url": "https://github.com/larszu/geklaute-ordnerstruktur-mac-.git"
+    "url": "https://github.com/larszu/SOLA-Ordnerstruktur.git"
   },
   "license": "MIT",
   "main": "src/main/main.js",
@@ -25,8 +25,8 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "de.sola.ordnerstruktur",
-    "productName": "SOLA Ordnerstruktur",
+    "appId": "de.zumpe.lz-ordnerstruktur",
+    "productName": "LZ Ordnerstruktur",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -52,7 +52,7 @@
           ]
         }
       ],
-      "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}.${ext}",
+      "artifactName": "LZ-Ordnerstruktur-${version}-${arch}.${ext}",
       "darkModeSupport": true,
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
@@ -60,7 +60,7 @@
       "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "dmg": {
-      "title": "SOLA Ordnerstruktur ${version}"
+      "title": "LZ Ordnerstruktur ${version}"
     },
     "win": {
       "target": [
@@ -77,14 +77,14 @@
           ]
         }
       ],
-      "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}.${ext}"
+      "artifactName": "LZ-Ordnerstruktur-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "SOLA Ordnerstruktur",
-      "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}-Setup.${ext}"
+      "shortcutName": "LZ Ordnerstruktur",
+      "artifactName": "LZ-Ordnerstruktur-${version}-${arch}-Setup.${ext}"
     },
     "linux": {
       "target": [
@@ -93,7 +93,7 @@
       "category": "Utility"
     },
     "portable": {
-      "artifactName": "SOLA-Ordnerstruktur-${version}-${arch}-portable.${ext}"
+      "artifactName": "LZ-Ordnerstruktur-${version}-${arch}-portable.${ext}"
     }
   }
 }

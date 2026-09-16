@@ -88,7 +88,7 @@ jobs:
           case "$TAG" in *-*) vorab=(--prerelease);; esac
           gh release create "$TAG" \
             --draft \
-            --title "SOLA Ordnerstruktur ${TAG#v}" \
+            --title "LZ Ordnerstruktur ${TAG#v}" \
             --generate-notes \
             "${vorab[@]}"
 
@@ -215,8 +215,8 @@ jobs:
           # in der package.json fest — sie hier ein zweites Mal auszuschreiben
           # hieße, dieselbe Regel an zwei Stellen zu pflegen; weicht eine ab,
           # bliebe ein vollständiges Release grundlos liegen.
-          dmg=$(grep -c -E "^SOLA-Ordnerstruktur-$VERSION[-.].*\\.dmg$" <<<"$vorhanden" || true)
-          exe=$(grep -c -E "^SOLA-Ordnerstruktur-$VERSION[-.].*\\.exe$" <<<"$vorhanden" || true)
+          dmg=$(grep -c -E "^LZ-Ordnerstruktur-$VERSION[-.].*\\.dmg$" <<<"$vorhanden" || true)
+          exe=$(grep -c -E "^LZ-Ordnerstruktur-$VERSION[-.].*\\.exe$" <<<"$vorhanden" || true)
           echo "Gefunden: $dmg .dmg, $exe .exe zur Version $VERSION."
 
           fehlt=0
