@@ -1,12 +1,20 @@
-# SOLA Ordnerstruktur
+# LZ Ordnerstruktur
 
-Legt die Ordnerstruktur für das Sola-Multimedia-Team an und installiert die
-Lightroom-Vorgaben — **auf macOS und auf Windows**.
+Ein Werkzeug für den Foto- und Videoworkflow — **auf macOS und auf Windows**. Es
 
-Das ist ein Nachbau von
+* legt die **Sola-Ordnerstruktur** an und installiert die Lightroom-Vorgaben,
+* **importiert Fotos und Videos** von Kamera, Kartenleser oder SD-Karte direkt in
+  die richtigen Ordner — wahlweise in die Sola-Struktur oder, ganz ohne Sola, in
+  einen Datumsbaum (`JJJJ/JJJJMM/JJJJMMDD`).
+
+Der Import macht die App **auch außerhalb des Solas** nützlich: Karte anstecken,
+vergleichen, kopieren.
+
+Der Sola-Teil ist ein Nachbau von
 [TH0RB3Nger/SOLA_Ordnerstrucktur](https://github.com/TH0RB3Nger/SOLA_Ordnerstrucktur)
 (VB.NET / WinForms, nur Windows) als Electron-App, damit dasselbe Programm auf
-beiden Plattformen läuft.
+beiden Plattformen läuft. Optik und Import folgen dem Design des
+[LZ-Sortierers](https://github.com/larszu/lz-sortierer).
 
 ## Die App
 
@@ -39,10 +47,10 @@ automatisch per GitHub Actions (`.github/workflows/release.yml`), sobald ein Tag
 
 | Plattform | Datei |
 | --- | --- |
-| macOS (Apple Silicon) | `SOLA-Ordnerstruktur-<version>-arm64.dmg` |
-| macOS (Intel) | `SOLA-Ordnerstruktur-<version>-x64.dmg` |
-| Windows (Installer) | `SOLA-Ordnerstruktur-<version>-x64-Setup.exe` |
-| Windows (ohne Installation) | `SOLA-Ordnerstruktur-<version>-x64-portable.exe` |
+| macOS (Apple Silicon) | `LZ-Ordnerstruktur-<version>-arm64.dmg` |
+| macOS (Intel) | `LZ-Ordnerstruktur-<version>-x64.dmg` |
+| Windows (Installer) | `LZ-Ordnerstruktur-<version>-x64-Setup.exe` |
+| Windows (ohne Installation) | `LZ-Ordnerstruktur-<version>-x64-portable.exe` |
 
 ### Hinweis zur ersten Ausführung
 
@@ -52,7 +60,7 @@ kostenpflichtiges Apple-Developer- bzw. Code-Signing-Zertifikat.
 * **macOS:** Beim ersten Start meldet Gatekeeper, die App stamme von einem
   unbekannten Entwickler. Rechtsklick auf die App → *Öffnen* → *Öffnen*.
   Falls macOS die App als „beschädigt" bezeichnet, hilft im Terminal:
-  `xattr -dr com.apple.quarantine "/Applications/SOLA Ordnerstruktur.app"`
+  `xattr -dr com.apple.quarantine "/Applications/LZ Ordnerstruktur.app"`
 * **Windows:** SmartScreen zeigt *„Der Computer wurde geschützt"* →
   *Weitere Informationen* → *Trotzdem ausführen*.
 
