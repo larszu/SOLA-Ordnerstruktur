@@ -7,8 +7,9 @@ const path = require('path');
 const { buildPlan, BEREICHE, SOLAS, emptyConfig } = require('../core/structure');
 const { createStructure } = require('../core/createStructure');
 const exif = require('../core/exif');
-const { scanImport, runImport } = require('../core/importRun');
+const { vergleicheImport, runImport, VERGLEICH_METHODEN } = require('../core/importRun');
 const { schemaListe } = require('../core/importPlan');
+const { listRemovable } = require('../core/devices');
 const { installPresets, lightroomPfade } = require('../core/lightroom');
 const presetStore = require('../core/presetStore');
 const { SOLA_TAGE, MIN_TAGE, MAX_TAGE } = require('../core/dates');
@@ -89,6 +90,12 @@ function buildMenu() {
           label: 'Konfiguration speichern …',
           accelerator: 'CmdOrCtrl+S',
           click: () => fenster && fenster.webContents.send('menu:save'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Fotos importieren …',
+          accelerator: 'CmdOrCtrl+I',
+          click: () => fenster && fenster.webContents.send('menu:import'),
         },
         { type: 'separator' },
         IST_MAC ? { role: 'close' } : { role: 'quit' },
@@ -266,52 +273,104 @@ ipcMain.handle('app:info', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Import von Fotos und Videos in ein wählbares Zielschema.
+// Importfenster: Kamera / Kartenleser / SD-Karte direkt in die richtigen Ordner
+// kopieren. Eigenes Fenster mit Vergleich (FreeFileSync-Art) vor dem Kopieren.
 // ---------------------------------------------------------------------------
 
-// Den zuletzt berechneten Plan zwischenspeichern, damit „Importieren" genau das
-// umsetzt, was die Vorschau zeigt – und nicht erneut die Karte einliest.
-let letzterImport = null;
+/** @type {BrowserWindow|null} */
+let importFenster = null;
+// Kontext aus dem Hauptfenster (Konfiguration + gewählter Zielordner) und der
+// zuletzt berechnete Plan, damit „Kopieren" genau den verglichenen Stand umsetzt.
+let importKontext = { config: emptyConfig(), zielordner: '' };
+let letzterVergleich = null;
 
 const importMelder = () => (text) => {
-  if (fenster) fenster.webContents.send('import:fortschritt', { text });
+  const ziel = importFenster || fenster;
+  if (ziel) ziel.webContents.send('import:fortschritt', { text });
 };
 
-/** Kurze, für die Liste lesbare Beschreibung eines geplanten Vorgangs. */
-function beschreibeImport(s) {
-  return `${path.basename(s.von)}  →  ${s.zielRel}/${s.zielName}  (${s.quelle})`;
+function oeffneImportFenster() {
+  if (importFenster) {
+    importFenster.focus();
+    return;
+  }
+  importFenster = new BrowserWindow({
+    width: 1040,
+    height: 800,
+    minWidth: 760,
+    minHeight: 560,
+    title: 'Fotos und Videos importieren',
+    backgroundColor: '#f4f5f7',
+    parent: fenster || undefined,
+    titleBarStyle: IST_MAC ? 'hiddenInset' : 'default',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  importFenster.loadFile(path.join(__dirname, '..', 'renderer', 'import.html'));
+  importFenster.on('closed', () => {
+    importFenster = null;
+    letzterVergleich = null;
+  });
 }
 
-ipcMain.handle('import:scan', async (_e, { quelle, schema, ktx, config }) => {
-  if (!quelle) return { ok: false, fehler: 'Bitte zuerst einen Quellordner wählen.' };
+ipcMain.handle('import:fensterOeffnen', (_e, kontext) => {
+  if (kontext && kontext.config) importKontext = { config: kontext.config, zielordner: kontext.zielordner || '' };
+  oeffneImportFenster();
+});
+
+ipcMain.handle('import:kontext', () => ({
+  config: importKontext.config,
+  zielordner: importKontext.zielordner,
+  schemata: schemaListe(),
+  methoden: VERGLEICH_METHODEN,
+  solas: SOLAS,
+  bereiche: BEREICHE,
+  exiftool: exif.vorhanden,
+  plattform: process.platform,
+}));
+
+ipcMain.handle('geraete:liste', () => listRemovable());
+
+ipcMain.handle('import:vergleichen', async (_e, { quelle, zielBasis, schema, ktx, config, methode }) => {
+  if (!quelle) return { ok: false, fehler: 'Bitte zuerst eine Quelle wählen.' };
   try {
-    const ergebnis = await scanImport({ quelle, schema, ktx, config, melde: importMelder() });
-    letzterImport = { plan: ergebnis.plan, schema };
+    const r = await vergleicheImport({ quelle, zielBasis, schema, ktx, config, methode, melde: importMelder() });
+    letzterVergleich = { plan: r.plan, methode };
     return {
       ok: true,
-      gefunden: ergebnis.gefunden,
-      anzahl: ergebnis.plan.length,
-      uebersprungen: ergebnis.uebersprungen.length,
-      quellen: ergebnis.zusammenfassung.quellen,
-      warnungen: ergebnis.warnungen,
-      jahr: ergebnis.jahr,
-      vorschau: ergebnis.plan.slice(0, 200).map(beschreibeImport),
-      uebersprungenListe: ergebnis.uebersprungen.slice(0, 40).map((u) => `${path.basename(u.von)} — ${u.grund}`),
+      gefunden: r.gefunden,
+      kategorien: r.kategorien,
+      quellen: r.quellen,
+      warnungen: r.warnungen,
+      jahr: r.jahr,
+      zielBekannt: r.zielBekannt,
+      uebersprungenDatum: r.uebersprungenDatum.slice(0, 40).map((u) => `${path.basename(u.von)} — ${u.grund}`),
+      eintraege: r.eintraege.slice(0, 300),
     };
   } catch (err) {
     return { ok: false, fehler: String(err.message || err) };
   }
 });
 
-ipcMain.handle('import:ausfuehren', async (_e, { zielBasis, verschieben }) => {
-  if (!letzterImport || letzterImport.plan.length === 0) {
-    return { ok: false, fehler: 'Bitte zuerst eine Vorschau erstellen.' };
+ipcMain.handle('import:kopieren', async (_e, { zielBasis, verschieben, methode }) => {
+  if (!letzterVergleich || letzterVergleich.plan.length === 0) {
+    return { ok: false, fehler: 'Bitte zuerst vergleichen.' };
   }
   if (!zielBasis) return { ok: false, fehler: 'Kein Zielordner gewählt.' };
   try {
-    const ergebnis = await runImport({ plan: letzterImport.plan, zielBasis, verschieben, melde: importMelder() });
-    letzterImport = null;
-    return { ok: true, ...ergebnis };
+    const r = await runImport({
+      plan: letzterVergleich.plan,
+      zielBasis,
+      verschieben,
+      methode: methode || letzterVergleich.methode,
+      melde: importMelder(),
+    });
+    letzterVergleich = null;
+    return { ok: true, ...r };
   } catch (err) {
     return { ok: false, fehler: String(err.message || err) };
   }

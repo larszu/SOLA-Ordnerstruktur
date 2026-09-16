@@ -12,8 +12,19 @@
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
+const crypto = require('crypto');
 const exif = require('./exif');
 const { buildImportPlan } = require('./importPlan');
+
+// Vergleichsmethoden nach dem Vorbild von FreeFileSync: „Datum & Größe" ist der
+// schnelle Standard, „Inhalt" vergleicht Byte für Byte, „Größe" nur die Länge.
+// (FreeFileSync ist GPL-Software – hier ist nur die Logik nachgebaut, kein Code
+// übernommen.)
+const VERGLEICH_METHODEN = [
+  { key: 'zeitgroesse', label: 'Datum & Größe' },
+  { key: 'inhalt', label: 'Inhalt (Prüfsumme)' },
+  { key: 'groesse', label: 'Nur Größe' },
+];
 
 const PROTOKOLL_ORDNER = '_Import-Protokolle';
 const UEBERSPRINGEN_ORDNER = new Set([PROTOKOLL_ORDNER, '_LZ-Sortierer-Protokolle']);
@@ -98,6 +109,50 @@ async function scanImport({ quelle, schema, ktx, config, melde }) {
   return { ...ergebnis, gefunden: dateien.length };
 }
 
+/**
+ * Vergleich vor dem Kopieren (wie FreeFileSync): ordnet jede Quelldatei einer
+ * Kategorie zu, ohne etwas zu verändern.
+ *   - `neu`    : am Ziel noch nicht vorhanden → wird kopiert
+ *   - `gleich` : schon vorhanden und identisch → wird übersprungen
+ *   - `anders` : Zielname vorhanden, aber anderer Inhalt → wird als Kopie angelegt
+ *
+ * @returns {Promise<object>} Kategorien, Beispieleinträge und der volle Plan
+ */
+async function vergleicheImport({ quelle, zielBasis, schema, ktx, config, methode = 'zeitgroesse', melde }) {
+  const scan = await scanImport({ quelle, schema, ktx, config, melde });
+  const kategorien = { neu: 0, gleich: 0, anders: 0 };
+  const eintraege = [];
+
+  if (zielBasis) {
+    melde && melde('Vergleiche mit dem Zielordner …');
+    for (const s of scan.plan) {
+      const direkt = path.join(zielBasis, ...s.zielRel.split('/'), s.zielName);
+      let kategorie = 'neu';
+      if (fs.existsSync(direkt)) kategorie = sindGleich(s.von, direkt, methode) ? 'gleich' : 'anders';
+      kategorien[kategorie] += 1;
+      eintraege.push({
+        name: path.basename(s.von),
+        ziel: `${s.zielRel}/${s.zielName}`,
+        datum: s.datum,
+        quelle: s.quelle,
+        kategorie,
+      });
+    }
+  }
+
+  return {
+    plan: scan.plan,
+    kategorien,
+    eintraege,
+    gefunden: scan.gefunden,
+    quellen: scan.zusammenfassung.quellen,
+    uebersprungenDatum: scan.uebersprungen,
+    warnungen: scan.warnungen,
+    jahr: scan.jahr,
+    zielBekannt: Boolean(zielBasis),
+  };
+}
+
 // ---- Ausführen --------------------------------------------------------------
 
 async function freierName(ordner, name) {
@@ -112,12 +167,39 @@ async function freierName(ordner, name) {
   return ziel;
 }
 
-function gleichGross(a, b) {
+function hashDatei(pfad) {
   try {
-    return fs.statSync(a).size === fs.statSync(b).size;
+    return crypto.createHash('sha256').update(fs.readFileSync(pfad)).digest('hex');
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Sind Quell- und Zieldatei „gleich"? Nach FreeFileSync-Art:
+ *  - immer verschieden, wenn die Größe abweicht;
+ *  - `groesse`: gleiche Größe genügt;
+ *  - `zeitgroesse`: zusätzlich Änderungszeit auf 2 s genau (FAT/DST-Toleranz);
+ *  - `inhalt`: zusätzlich gleiche Prüfsumme.
+ */
+function sindGleich(quelle, ziel, methode = 'zeitgroesse') {
+  let sq;
+  let sz;
+  try {
+    sq = fs.statSync(quelle);
+    sz = fs.statSync(ziel);
   } catch (_) {
     return false;
   }
+  if (sq.size !== sz.size) return false;
+  if (methode === 'groesse') return true;
+  if (methode === 'inhalt') {
+    const hq = hashDatei(quelle);
+    const hz = hashDatei(ziel);
+    return Boolean(hq) && hq === hz;
+  }
+  // zeitgroesse (Standard)
+  return Math.abs(sq.mtimeMs - sz.mtimeMs) <= 2000;
 }
 
 async function verschiebe(von, ziel) {
@@ -148,9 +230,10 @@ async function protokoll(zielBasis, zeilen) {
  * @param {object[]} args.plan       aus {@link scanImport}
  * @param {string}   args.zielBasis  Basisordner (bei Sola der gewählte Zielordner)
  * @param {boolean}  [args.verschieben=false]
+ * @param {string}   [args.methode='zeitgroesse']  wie „schon vorhanden" erkannt wird
  * @param {(text: string) => void} [args.melde]
  */
-async function runImport({ plan, zielBasis, verschieben = false, melde }) {
+async function runImport({ plan, zielBasis, verschieben = false, methode = 'zeitgroesse', melde }) {
   const modus = verschieben ? 'verschoben' : 'kopiert';
   const log = [
     `Import am ${new Date().toLocaleString('de-DE')}`,
@@ -169,18 +252,26 @@ async function runImport({ plan, zielBasis, verschieben = false, melde }) {
     const zielOrdner = path.join(zielBasis, ...s.zielRel.split('/'));
     try {
       const direkt = path.join(zielOrdner, s.zielName);
-      if (fs.existsSync(direkt) && gleichGross(s.von, direkt)) {
+      if (fs.existsSync(direkt) && sindGleich(s.von, direkt, methode)) {
         uebersprungen += 1;
         log.push(`schon vorhanden: ${s.von}`);
       } else {
+        // Änderungszeit der Quelle vor dem (möglichen) Verschieben merken.
+        let quellZeit = null;
+        try {
+          quellZeit = fs.statSync(s.von).mtime;
+        } catch (_) {
+          // nicht kritisch
+        }
         await fsp.mkdir(zielOrdner, { recursive: true });
         const ziel = await freierName(zielOrdner, s.zielName);
         if (verschieben) await verschiebe(s.von, ziel);
         else await fsp.copyFile(s.von, ziel);
-        // Änderungsdatum auf den Aufnahmezeitpunkt setzen (wie beim LZ-Sortierer).
-        if (s.ts instanceof Date && !Number.isNaN(s.ts.getTime())) {
+        // Die Änderungszeit der Quelle erhalten (wie FreeFileSync) – so erkennt
+        // ein späterer Vergleich dieselbe Datei wieder.
+        if (quellZeit) {
           try {
-            await fsp.utimes(ziel, s.ts, s.ts);
+            await fsp.utimes(ziel, quellZeit, quellZeit);
           } catch (_) {
             // nicht kritisch
           }
@@ -214,7 +305,10 @@ module.exports = {
   sammleMedien,
   leseInfos,
   scanImport,
+  vergleicheImport,
   runImport,
   freierName,
+  sindGleich,
+  VERGLEICH_METHODEN,
   PROTOKOLL_ORDNER,
 };
