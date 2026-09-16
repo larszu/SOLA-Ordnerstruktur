@@ -1,42 +1,67 @@
-:root {
-  --bg: #f4f5f7;
-  --karte: #ffffff;
-  --rand: #dfe3e8;
-  --text: #1d2129;
-  --gedaempft: #61686f;
-  --akzent: #2f6f4f;
-  --akzent-hell: #e8f2ec;
-  --warnung: #8a5a00;
-  --warnung-hell: #fdf3e0;
-  --fehler: #a12a24;
-  --fehler-hell: #fbeceb;
-  --erfolg: #1f6b3f;
-  --erfolg-hell: #e7f4ec;
-  --radius: 10px;
-  --schrift: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+/* Lars Zumpe CI: Zumpe Navy #1D324F, Deep Navy #132040, Eisblau #E1ECEF,
+   Stahlblau #8C9CB3, Schiefer #5C6B85, Papier #F6F5F0.
+   Funktionsfarben: Erfolg #2F7D5C, Hinweis #C8892B, Fehler #B04A3F.
+   Schrift: Public Sans. Dieselbe Optik wie der LZ-Sortierer. */
+@font-face {
+  font-family: 'Public Sans';
+  src: local('Public Sans');
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1b1d21;
-    --karte: #24272c;
-    --rand: #383c43;
-    --text: #e9eaec;
-    --gedaempft: #a3a9b1;
-    --akzent: #6ab98d;
-    --akzent-hell: #23342b;
-    --warnung: #e0b060;
-    --warnung-hell: #33291a;
-    --fehler: #e98d87;
-    --fehler-hell: #33211f;
-    --erfolg: #7bc79b;
-    --erfolg-hell: #1e2f25;
-  }
+:root {
+  /* CI-Grundfarben */
+  --navy: #1d324f;
+  --deep: #132040;
+  --eis: #e1ecef;
+  --stahl: #8c9cb3;
+  --schiefer: #5c6b85;
+  --papier: #f6f5f0;
+
+  /* Rollen der Oberfläche, auf die CI abgebildet */
+  --bg: var(--papier);
+  --karte: #ffffff;
+  --rand: var(--eis);
+  --text: var(--navy);
+  --gedaempft: var(--schiefer);
+  --akzent: var(--navy);
+  --akzent-hell: var(--eis);
+  --warnung: #c8892b;
+  --warnung-hell: #fbf0de;
+  --warnung-text: #8a5510; /* für Text: Amber selbst erreicht kein AA */
+  --fehler: #b04a3f;
+  --fehler-hell: #f7e7e4;
+  --fehler-text: #8f382e;
+  --erfolg: #2f7d5c;
+  --erfolg-hell: #e5f0ea;
+  --erfolg-text: #216046;
+
+  /* Spacing-Skala (4-px-Raster) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+
+  /* Fokus, Schatten, Übergänge */
+  --fokus: #1d5fbf;
+  --schatten: 0 1px 2px rgba(19, 32, 64, 0.06), 0 1px 3px rgba(19, 32, 64, 0.05);
+  --schatten-hover: 0 2px 6px rgba(19, 32, 64, 0.10), 0 3px 12px rgba(19, 32, 64, 0.08);
+  --tempo: 0.15s;
+
+  --radius: 8px;
+  --schrift: 'Public Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Ein Desktop-Fenster scrollt nie seitlich – breite Inhalte (z. B. die
+   Vorgabentabelle) bekommen ihre eigene, waagerechte Bildlaufleiste. */
+html {
+  overflow-x: hidden;
 }
 
 body {
@@ -197,7 +222,7 @@ select {
   border-radius: 6px;
   background: var(--karte);
   color: var(--text);
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 input:focus-visible,
@@ -602,4 +627,482 @@ fieldset {
 
 .feld-tage input {
   font-variant-numeric: tabular-nums;
+}
+
+/* --- Import (Abschnitt 5) ------------------------------------------------ */
+
+/* [hidden] muss auch die Flex-Zeilen des Imports sicher ausblenden. */
+[hidden] {
+  display: none !important;
+}
+
+.warn {
+  color: var(--warnung);
+  font-weight: 600;
+}
+
+.import-sola select,
+.import-optionen {
+  font-variant-numeric: tabular-nums;
+}
+
+.import-optionen {
+  gap: 18px;
+}
+
+.wahl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+
+.wahl input {
+  margin: 0;
+}
+
+/* Kacheln mit Kennzahlen der Vorschau. */
+.kacheln {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.kachel {
+  display: flex;
+  flex-direction: column;
+  min-width: 96px;
+  padding: 10px 14px;
+  background: var(--akzent-hell);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+}
+
+.kachel .zahl {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--akzent);
+}
+
+.kachel .etikett {
+  font-size: 12px;
+  color: var(--gedaempft);
+}
+
+/* --- Importfenster ------------------------------------------------------- */
+
+.import-body main {
+  padding-bottom: 24px;
+}
+
+.import-spalten {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 820px) {
+  .import-spalten {
+    grid-template-columns: 1fr;
+  }
+}
+
+.geraete {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.geraet {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+  background: var(--karte);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.geraet:hover {
+  border-color: var(--akzent);
+}
+
+.geraet.aktiv {
+  border-color: var(--akzent);
+  background: var(--akzent-hell);
+}
+
+.geraet-name {
+  font-weight: 600;
+}
+
+.geraet-info {
+  font-size: 12px;
+  color: var(--gedaempft);
+  font-family: var(--mono);
+}
+
+/* Statusabzeichen im Vergleichsergebnis. */
+.kat {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kat-neu {
+  background: var(--erfolg-hell);
+  color: var(--erfolg);
+}
+
+.kat-gleich {
+  background: var(--rand);
+  color: var(--gedaempft);
+}
+
+.kat-anders {
+  background: var(--warnung-hell);
+  color: var(--warnung);
+}
+
+.kachel-neu .zahl {
+  color: var(--erfolg);
+}
+
+.kachel-anders .zahl {
+  color: var(--warnung);
+}
+
+.kachel-gleich .zahl {
+  color: var(--gedaempft);
+}
+
+.import-tabelle {
+  max-height: 320px;
+  overflow: auto;
+  margin-top: 8px;
+}
+
+.spalte-kat {
+  width: 96px;
+}
+
+/* --- Lars Zumpe CI: Kopf und Feinschliff --------------------------------- */
+
+/* Der Fensterkopf trägt die Marke: Deep Navy mit weißer Schrift. */
+.kopf {
+  background: var(--deep);
+  border-bottom: none;
+  color: #fff;
+}
+
+.kopf h1 {
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.kopf-titel p {
+  color: var(--stahl);
+}
+
+.version {
+  color: var(--stahl);
+}
+
+/* Knöpfe im dunklen Kopf: heller Rahmen auf Navy, füllen beim Überfahren. */
+.kopf .knopf {
+  background: transparent;
+  border-color: var(--stahl);
+  color: var(--eis);
+}
+
+.kopf .knopf:hover:not(:disabled) {
+  background: var(--eis);
+  border-color: var(--eis);
+  color: var(--navy);
+}
+
+/* Primärknopf im Navy-Ton der CI, mit etwas mehr Gewicht. */
+.knopf-primaer {
+  font-weight: 600;
+}
+
+.knopf-primaer:hover:not(:disabled) {
+  background: var(--deep);
+  filter: none;
+}
+
+/* Kennzahlen-Kacheln: Papierrahmen wie im LZ-Sortierer. */
+.kachel {
+  background: #fff;
+  border-color: var(--eis);
+}
+
+/* ========================================================================= *
+ *  Modernisierung & Barrierefreiheit (WCAG AA)                              *
+ *  Feinschliff für Abstände, Fokus, Kontrast und Bedienbarkeit.            *
+ * ========================================================================= */
+
+body {
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--eis);
+  color: var(--navy);
+}
+
+/* Sichtbarer, konsistenter Fokusring auf allem Bedienbaren – Grundlage der
+   Tastaturbedienung. Auf dem dunklen Kopf hell, sonst kräftiges Blau. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible,
+.geraet:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.kopf a:focus-visible,
+.kopf button:focus-visible {
+  outline-color: var(--eis);
+}
+
+/* Weiche Übergänge – nur, wenn die Person keine Reduktion wünscht. */
+@media (prefers-reduced-motion: no-preference) {
+  .knopf,
+  .geraet,
+  input,
+  select,
+  .meldung button,
+  .sola,
+  .kachel {
+    transition: background-color var(--tempo) ease, border-color var(--tempo) ease,
+      color var(--tempo) ease, box-shadow var(--tempo) ease, transform var(--tempo) ease;
+  }
+}
+
+/* --- Layout-Rhythmus ----------------------------------------------------- */
+
+main {
+  gap: var(--s-6);
+  padding: var(--s-6) var(--s-8) var(--s-8);
+}
+
+.karte {
+  padding: var(--s-5) var(--s-6) var(--s-6);
+  box-shadow: var(--schatten);
+}
+
+.karte h2 {
+  margin-bottom: var(--s-5);
+  font-size: 12px;
+  letter-spacing: 0.07em;
+  color: var(--schiefer);
+}
+
+/* --- Knöpfe: klare Hierarchie, große Ziele, spürbares Feedback ----------- */
+
+.knopf {
+  min-height: 40px;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  border-width: 1.5px;
+}
+
+.knopf:hover:not(:disabled) {
+  border-color: var(--navy);
+  background: var(--eis);
+}
+
+.knopf:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.knopf-primaer,
+.knopf-primaer:hover:not(:disabled) {
+  color: #fff;
+}
+
+.knopf-primaer {
+  background: var(--navy);
+  border-color: var(--navy);
+  box-shadow: var(--schatten);
+}
+
+.knopf-primaer:hover:not(:disabled) {
+  background: var(--deep);
+  border-color: var(--deep);
+}
+
+/* --- Formularfelder: gleiche Höhe, ruhiger Fokus ------------------------- */
+
+input[type='text'],
+input[type='date'],
+select {
+  min-height: 40px;
+  padding: 9px 11px;
+  border-width: 1.5px;
+}
+
+input[type='text']:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: var(--stahl);
+}
+
+.namen-liste input {
+  min-height: 32px;
+}
+
+/* Beschriftungen etwas kräftiger und mit Luft. */
+.feld > span,
+legend {
+  color: var(--schiefer);
+  letter-spacing: 0.02em;
+}
+
+/* --- Meldungen & Status: AA-taugliche Textfarben ------------------------- */
+
+.meldung {
+  border-width: 1.5px;
+  border-radius: var(--radius);
+  padding: 11px 14px;
+}
+
+.meldung-warnung {
+  color: var(--warnung-text);
+}
+
+.meldung-fehler {
+  color: var(--fehler-text);
+}
+
+.meldung-erfolg {
+  color: var(--erfolg-text);
+}
+
+.warn {
+  color: var(--warnung-text);
+}
+
+.fortschritt,
+[role='status'] {
+  min-height: 20px;
+}
+
+/* --- Kacheln & Statusabzeichen ------------------------------------------ */
+
+.kachel {
+  box-shadow: var(--schatten);
+  border-radius: var(--radius);
+}
+
+.kachel-neu .zahl {
+  color: var(--erfolg-text);
+}
+
+.kachel-anders .zahl {
+  color: var(--warnung-text);
+}
+
+.kat {
+  padding: 2px 10px;
+}
+
+.kat-neu {
+  color: var(--erfolg-text);
+}
+
+.kat-anders {
+  color: var(--warnung-text);
+}
+
+/* --- Gerätekarten: fühlbar anklickbar, klarer aktiver Zustand ----------- */
+
+.geraet {
+  min-height: 52px;
+  box-shadow: var(--schatten);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .geraet:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--schatten-hover);
+  }
+}
+
+.geraet.aktiv {
+  border-width: 2px;
+  box-shadow: var(--schatten);
+}
+
+/* --- Vergleichstabelle: Zeilen-Hover und Zebra für die Lesbarkeit ------- */
+
+.vorgaben-tabelle tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--papier) 55%, #fff);
+}
+
+.import-tabelle tbody tr:hover {
+  background: var(--eis);
+}
+
+.vorgaben-tabelle th {
+  color: var(--schiefer);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* --- Links: erkennbar und fokussierbar ---------------------------------- */
+
+.fuss a {
+  color: var(--navy);
+  text-underline-offset: 2px;
+}
+
+.fuss a:hover {
+  text-decoration-thickness: 2px;
+}
+
+
+/* Fokusring konsistent über die spezifischere Basisregel legen. */
+.knopf:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.kopf .knopf:focus-visible {
+  outline-color: var(--eis);
+}
+
+/* Kompakte Kontexte behalten ihre schlanke Höhe – die globale Feldhöhe von
+   40px gilt nur den Hauptformularfeldern, nicht Listen und Tabellenzellen. */
+.namen-liste input {
+  min-height: 34px;
+  padding: 6px 9px;
+}
+
+.meta-felder input {
+  min-height: 30px;
+  padding: 4px 8px;
+}
+
+.knopf-klein {
+  min-height: 30px;
+  padding: 5px 12px;
 }

@@ -42,9 +42,9 @@
         <div class="zeile zeile-umbruch">
           <button type="button" id="btnVorschau" class="knopf knopf-still">Vorschau aktualisieren</button>
           <button type="button" id="btnErstellen" class="knopf knopf-primaer" disabled>Ordnerstruktur erstellen</button>
-          <span class="hinweis" id="planInfo"></span>
+          <span class="hinweis" id="planInfo" aria-live="polite"></span>
         </div>
-        <div class="meldungen" id="meldungen"></div>
+        <div class="meldungen" id="meldungen" role="status" aria-live="polite"></div>
         <details class="vorschau" id="vorschauBox">
           <summary>Vorschau <span id="vorschauAnzahl"></span></summary>
           <pre id="vorschauBaum"></pre>
@@ -91,12 +91,12 @@
             <table class="vorgaben-tabelle">
               <thead>
                 <tr>
-                  <th class="spalte-aktiv">Aktiv</th>
-                  <th>Datei</th>
-                  <th>Typ</th>
-                  <th>Quelle</th>
-                  <th>Bezeichnung / Kurzform</th>
-                  <th class="spalte-aktion"></th>
+                  <th class="spalte-aktiv" scope="col">Aktiv</th>
+                  <th scope="col">Datei</th>
+                  <th scope="col">Typ</th>
+                  <th scope="col">Quelle</th>
+                  <th scope="col">Bezeichnung / Kurzform</th>
+                  <th class="spalte-aktion" scope="col" aria-label="Aktion"></th>
                 </tr>
               </thead>
               <tbody id="vorgabenListe"></tbody>
@@ -105,6 +105,18 @@
         </div>
 
         <p class="hinweis mono" id="lrPfad"></p>
+      </section>
+
+      <section class="karte">
+        <h2>5 · Fotos und Videos importieren</h2>
+        <p class="hinweis">
+          Kamera, Kartenleser oder SD-Karte anstecken und direkt in die richtigen Ordner kopieren —
+          ohne Umweg über Finder oder Explorer. Das Importfenster erkennt den Datenträger, vergleicht
+          zuerst mit dem Ziel (neu · schon vorhanden · abweichend) und kopiert dann nur, was fehlt.
+        </p>
+        <div class="zeile">
+          <button type="button" id="btnImportFenster" class="knopf knopf-primaer">Importfenster öffnen …</button>
+        </div>
       </section>
     </main>
 

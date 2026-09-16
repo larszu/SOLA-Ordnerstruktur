@@ -151,8 +151,11 @@ function verdrahteKopf() {
   $('btnSpeichern').addEventListener('click', speichern);
   $('btnLaden').addEventListener('click', laden);
 
+  $('btnImportFenster').addEventListener('click', importFensterOeffnen);
+
   sola.onMenu('menu:save', speichern);
   sola.onMenu('menu:load', laden);
+  sola.onMenu('menu:import', importFensterOeffnen);
 
   for (const link of document.querySelectorAll('[data-link]')) {
     link.addEventListener('click', (e) => {
@@ -509,6 +512,15 @@ function baueVorgabenZeile(vorgabe) {
   }
 
   return zeile;
+}
+
+// ---------------------------------------------------------------------------
+// Importfenster
+// ---------------------------------------------------------------------------
+
+/** Öffnet das eigene Importfenster und gibt ihm die aktuelle Konfiguration mit. */
+function importFensterOeffnen() {
+  sola.importFensterOeffnen({ config: zustand.config, zielordner: zustand.pfad });
 }
 
 init();

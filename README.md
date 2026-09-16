@@ -22,6 +22,12 @@ untereinander, unter 620 px auch die Namensspalten:
 
 <img src="docs/screenshots/05-schmal.png" alt="Schmales Fenster" width="380">
 
+Ein eigenes **Importfenster** kopiert Fotos und Videos direkt von Kamera,
+Kartenleser oder SD-Karte in die richtigen Ordner — es erkennt den Datenträger,
+**vergleicht zuerst** mit dem Ziel (wie FreeFileSync) und kopiert dann nur, was fehlt:
+
+<img src="docs/screenshots/06-import.png" alt="Importfenster" width="640">
+
 Die Bilder entstehen beim Headless-Durchlauf (`npm run smoke`) und sind damit immer
 der tatsächliche Stand der App.
 
@@ -62,6 +68,11 @@ kostenpflichtiges Apple-Developer- bzw. Code-Signing-Zertifikat.
    zeigt exakt das, was danach auf der Platte landet.
 4. Optional: **Lightroom-Vorgaben installieren** — Kürzel (z. B. `M.U.`), Sola
    und zweistelliges Jahr eintragen. Lightroom danach neu starten.
+
+5. Optional: **Fotos und Videos importieren** — über *Importfenster öffnen*
+   (oder `⌘I`/`Strg+I`) das eigene Fenster öffnen, Kamera/SD-Karte anstecken,
+   vergleichen und kopieren. Näheres unter
+   [Fotos und Videos importieren](#fotos-und-videos-importieren).
 
 Konfigurationen lassen sich über *Konfiguration speichern* / *laden* (auch per
 `⌘S`/`Strg+S` und `⌘O`/`Strg+O`) sichern und wieder einlesen.
@@ -186,6 +197,84 @@ Zielordner beim Installieren:
 
 Der tatsächlich verwendete Pfad steht in der App unter Punkt 4.
 
+## Fotos und Videos importieren
+
+Über *Importfenster öffnen* (Abschnitt 5) bzw. `⌘I`/`Strg+I` öffnet sich ein
+**eigenes Fenster**. Der Ablauf ist an [FreeFileSync](https://freefilesync.org)
+angelehnt: **Quelle und Ziel wählen, vergleichen, dann kopieren** — ohne im
+Finder/Explorer zu hantieren.
+
+* **Gerät anstecken** — Kameras, Kartenleser und SD-Karten werden erkannt
+  (an ihrem `DCIM`-Ordner) und stehen mit einem Klick als Quelle bereit.
+  *Geräte aktualisieren* liest neu ein; alternativ *Ordner wählen*.
+* **Vergleichen** — vor dem Kopieren zeigt das Fenster für jede Datei, ob sie
+  **neu** (wird kopiert), **schon vorhanden** (wird übersprungen) oder
+  **abweichend** ist (gleicher Zielname, anderer Inhalt → wird als Kopie
+  angelegt). Die Vergleichsmethode ist wählbar, ebenfalls nach FreeFileSync-Art:
+  *Datum & Größe* (schneller Standard), *Inhalt* (Byte für Byte per Prüfsumme)
+  oder *Nur Größe*.
+* **Kopieren** — nur das Fehlende wird geschrieben. Steckt man dieselbe Karte
+  erneut an, meldet der Vergleich alles als „schon vorhanden".
+
+> FreeFileSync ist GPL-Software. Hier ist nur die bewährte **Logik** nachgebaut
+> (die drei Vergleichsmethoden, das „nur Fehlendes kopieren, nichts löschen",
+> das Erhalten der Änderungszeit) – es wurde kein Code übernommen.
+
+Das **Aufnahmedatum** bestimmt, wohin eine Datei gehört. Es kommt – in dieser
+Reihenfolge – aus den EXIF-Metadaten, sonst aus dem Dateinamen, sonst aus dem
+Änderungsdatum.
+
+Das **Zielschema** ist wählbar:
+
+* **Sola-Struktur** — legt jede Datei in den Tages- und Personenordner der
+  Sola-Struktur: Fotos nach `…/NN_Foto/<n>_Tag_<dd-MM-yyyy>/PP_<Name>/01_ImportRAW`,
+  Videos nach `…/NN_Video/<n>_Tag_<dd-MM-yyyy>/01_Rohvideos/PP_<Name>`. Sola,
+  Bereich und Person werden aus der oben eingestellten Konfiguration gewählt; das
+  Ziel ist der Zielordner aus Schritt 1. Dateien, deren Datum außerhalb der
+  Sola-Tage liegt, bleiben liegen und werden in der Vorschau aufgeführt.
+* **Datumsbaum** (`JJJJ/JJJJMM/JJJJMMDD`) — sortiert rein nach Aufnahmedatum,
+  plattformübergreifend. Optional lässt sich in einen Unterordner `_Handy`
+  einsortieren. Angelehnt an den [LZ-Sortierer](https://github.com/larszu/lz-sortierer).
+
+Weitere Schemata lassen sich in `src/core/importPlan.js` ergänzen, ohne den Rest
+anzufassen.
+
+Die Vorschau zeigt vor dem Import, welche Datei wohin käme, aus welcher Quelle das
+Datum stammt und was übersprungen wird. Es gelten dieselben Sicherheitsprinzipien
+wie beim Anlegen der Struktur:
+
+* **Kopieren statt Verschieben** ist die Voreinstellung — die Speicherkarte bleibt
+  unangetastet. Verschieben ist ein bewusstes Häkchen.
+* **Nichts wird überschrieben** — bei Namensgleichheit wird durchnummeriert.
+* **Wiederholbar** — schon vorhandene Dateien (nach der gewählten
+  Vergleichsmethode) werden beim zweiten Lauf übersprungen, nichts verdoppelt
+  sich. Die Änderungszeit der Quelle bleibt erhalten, damit der Vergleich sie
+  wiedererkennt.
+* **Protokoll** — jeder Lauf schreibt eine Liste der Vorgänge nach
+  `_Import-Protokolle` im Zielordner.
+
+### ExifTool
+
+Für zuverlässige Aufnahmedaten – besonders bei RAW und Video – nutzt der Import
+[ExifTool](https://exiftool.org), sofern es installiert ist:
+
+```bash
+brew install exiftool      # macOS
+```
+
+Fehlt ExifTool, arbeitet der Import trotzdem: das Datum kommt dann aus Dateiname
+oder Änderungsdatum. Die Oberfläche weist oben im Abschnitt darauf hin. ExifTool
+verändert dabei keine Dateien, es wird nur zum Lesen der Metadaten aufgerufen.
+Videos aus QuickTime (`.mov`, `.mp4`) werden mit `-api QuickTimeUTC` von UTC auf die
+lokale Zeit umgerechnet, damit sie im richtigen Tagesordner landen.
+
+## Gestaltung
+
+Die App folgt dem Corporate Design von **Lars Zumpe** — dieselbe Optik wie der
+[LZ-Sortierer](https://github.com/larszu/lz-sortierer): Deep-Navy-Kopf, Papier-Hintergrund,
+Zumpe-Navy-Text und die Funktionsfarben Erfolg/Hinweis/Fehler. Die Farbtokens stehen
+oben in `src/renderer/styles.css`.
+
 ## Entwicklung
 
 ```bash
@@ -240,6 +329,9 @@ Ordnerstruktur in einem temporären Ordner an und prüft unter anderem:
 * alle vier Solas bekommen ihren festen Ordner, und die eingestellte Dauer
   schlägt auf die Anzahl der Tagesordner durch,
 * eine eigene Vorgabe erscheint in der Tabelle, lässt sich abwählen und entfernen,
+* das Importfenster öffnet sich, vergleicht, legt die Dateien anhand ihres Datums
+  im richtigen Tages- und Personenordner (`01_ImportRAW`) ab, lässt die Quelle heil
+  und erkennt einen zweiten Lauf als „schon vorhanden",
 * bei 1180, 760 und 620 px Fensterbreite scrollt die Seite nicht seitlich.
 
 Dabei entstehen die Screenshots in `docs/screenshots/`. Der Lauf endet mit
@@ -249,8 +341,15 @@ Code 1, sobald eine Prüfung fehlschlägt — er taugt also für CI.
 
 ```
 src/core/       Plattformunabhängige Logik, ohne Electron-Abhängigkeit
-  structure.js    baut den Ordnerbaum als Liste relativer Pfade (rein funktional)
+  structure.js    baut den Ordnerbaum als Liste relativer Pfade (rein funktional);
+                  liefert mit importZielordner auch die Import-Ziele je Person/Tag
   createStructure.js  legt diese Liste auf der Platte an
+  exif.js         optionale ExifTool-Anbindung (nur Lesen der Metadaten)
+  devices.js      erkennt angesteckte Wechseldatenträger (Kamera/SD über DCIM)
+  importPlan.js   ordnet Dateien anhand ihres Datums einem wählbaren Zielschema zu
+                  (rein funktional, testbar); die Schema-Registry liegt hier
+  importRun.js    sammelt Medien, liest die Metadaten, vergleicht (FreeFileSync-Art)
+                  und setzt den Plan um (kopieren als Standard, Protokoll)
   lightroom.js    Preset-Pfade je Plattform, Kopieren und Anpassen
   presetStore.js  führt mitgelieferte und eigene Vorgaben zusammen
   config.js       JSON- und CSV-Format (Letzteres kompatibel zum Original)

@@ -23,8 +23,15 @@ contextBridge.exposeInMainWorld('sola', {
   presetsZuruecksetzen: () => ipcRenderer.invoke('presets:zuruecksetzen'),
   linkOeffnen: (url) => ipcRenderer.invoke('shell:oeffnen', url),
   appInfo: () => ipcRenderer.invoke('app:info'),
+  // Importfenster
+  importFensterOeffnen: (kontext) => ipcRenderer.invoke('import:fensterOeffnen', kontext),
+  importKontext: () => ipcRenderer.invoke('import:kontext'),
+  geraeteListe: () => ipcRenderer.invoke('geraete:liste'),
+  importVergleichen: (daten) => ipcRenderer.invoke('import:vergleichen', daten),
+  importKopieren: (daten) => ipcRenderer.invoke('import:kopieren', daten),
+  aufImportFortschritt: (handler) => ipcRenderer.on('import:fortschritt', (_e, d) => handler(d)),
   onMenu: (kanal, handler) => {
-    const erlaubt = ['menu:load', 'menu:save'];
+    const erlaubt = ['menu:load', 'menu:save', 'menu:import'];
     if (!erlaubt.includes(kanal)) return;
     ipcRenderer.on(kanal, () => handler());
   },

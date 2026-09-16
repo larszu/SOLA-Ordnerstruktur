@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:" />
+    <title>Importieren</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="import-body">
+    <header class="kopf">
+      <div class="kopf-titel">
+        <h1>Fotos und Videos importieren</h1>
+        <p>Kamera, Kartenleser oder SD-Karte anstecken — vergleichen, dann kopieren.</p>
+      </div>
+    </header>
+
+    <main>
+      <div class="import-spalten">
+        <section class="karte">
+          <h2>Quelle</h2>
+          <p class="hinweis" id="werkzeugHinweis"></p>
+          <div class="zeile zeile-umbruch">
+            <button type="button" id="btnGeraeteAktualisieren" class="knopf knopf-still">Geräte aktualisieren</button>
+            <button type="button" id="btnQuelleOrdner" class="knopf">Ordner wählen …</button>
+          </div>
+          <div class="geraete" id="geraeteListe" role="group" aria-label="Erkannte Datenträger"></div>
+          <p class="hinweis">Gewählte Quelle:</p>
+          <code class="pfad" id="quelleAnzeige">Noch keine Quelle gewählt</code>
+        </section>
+
+        <section class="karte">
+          <h2>Ziel</h2>
+          <label class="feld feld-schmal">
+            <span>Zielschema</span>
+            <select id="schema"></select>
+          </label>
+          <p class="hinweis" id="schemaInfo"></p>
+
+          <div class="zeile zeile-umbruch import-sola" id="solaFelder">
+            <label class="feld feld-schmal"><span>Sola</span><select id="sola"></select></label>
+            <label class="feld feld-schmal"><span>Bereich</span><select id="bereich"></select></label>
+            <label class="feld feld-schmal"><span>Person</span><select id="person"></select></label>
+          </div>
+
+          <div class="zeile zeile-umbruch">
+            <button type="button" id="btnZielOrdner" class="knopf">Zielordner wählen …</button>
+            <code class="pfad" id="zielAnzeige">Noch kein Zielordner gewählt</code>
+          </div>
+
+          <div class="zeile zeile-umbruch import-optionen">
+            <label class="wahl"><input type="checkbox" id="umbenennen" /> Nach Aufnahmezeit umbenennen</label>
+            <label class="wahl" id="handyWahl"><input type="checkbox" id="handy" /> in Unterordner „_Handy“</label>
+            <label class="wahl"><input type="checkbox" id="verschieben" /> Verschieben statt kopieren</label>
+          </div>
+
+          <label class="feld feld-schmal">
+            <span>Vergleich</span>
+            <select id="methode"></select>
+          </label>
+        </section>
+      </div>
+
+      <section class="karte">
+        <div class="zeile zeile-umbruch">
+          <button type="button" id="btnVergleichen" class="knopf knopf-still">Vergleichen</button>
+          <button type="button" id="btnKopieren" class="knopf knopf-primaer" disabled>Kopieren</button>
+          <span class="hinweis" id="fortschritt" role="status" aria-live="polite"></span>
+        </div>
+        <div class="meldungen" id="meldungen" role="status" aria-live="polite"></div>
+        <div class="kacheln" id="kacheln"></div>
+
+        <div class="tabelle-scroll import-tabelle" id="ergebnisBox" hidden>
+          <table class="vorgaben-tabelle">
+            <thead>
+              <tr>
+                <th class="spalte-kat" scope="col">Status</th>
+                <th scope="col">Datei</th>
+                <th scope="col">Datum</th>
+                <th scope="col">Ziel</th>
+              </tr>
+            </thead>
+            <tbody id="ergebnisListe"></tbody>
+          </table>
+        </div>
+        <details class="vorschau" id="uebersprungenBox" hidden>
+          <summary>Übersprungen (Datum außerhalb der Sola-Tage) <span id="uebersprungenAnzahl"></span></summary>
+          <pre id="uebersprungenListe"></pre>
+        </details>
+      </section>
+    </main>
+
+    <script src="import.js"></script>
+  </body>
+</html>

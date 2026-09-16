@@ -6,6 +6,10 @@ const path = require('path');
 
 const { buildPlan, BEREICHE, SOLAS, emptyConfig } = require('../core/structure');
 const { createStructure } = require('../core/createStructure');
+const exif = require('../core/exif');
+const { vergleicheImport, runImport, VERGLEICH_METHODEN } = require('../core/importRun');
+const { schemaListe } = require('../core/importPlan');
+const { listRemovable } = require('../core/devices');
 const { installPresets, lightroomPfade } = require('../core/lightroom');
 const presetStore = require('../core/presetStore');
 const { SOLA_TAGE, MIN_TAGE, MAX_TAGE } = require('../core/dates');
@@ -44,7 +48,7 @@ function createWindow() {
     minWidth: 600,
     minHeight: 560,
     title: 'SOLA Ordnerstruktur',
-    backgroundColor: '#f4f5f7',
+    backgroundColor: '#f6f5f0',
     // Auf macOS sitzt die Ampel im eigenen Header, unter Windows bleibt die
     // Systemleiste stehen.
     titleBarStyle: IST_MAC ? 'hiddenInset' : 'default',
@@ -86,6 +90,12 @@ function buildMenu() {
           label: 'Konfiguration speichern …',
           accelerator: 'CmdOrCtrl+S',
           click: () => fenster && fenster.webContents.send('menu:save'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Fotos importieren …',
+          accelerator: 'CmdOrCtrl+I',
+          click: () => fenster && fenster.webContents.send('menu:import'),
         },
         { type: 'separator' },
         IST_MAC ? { role: 'close' } : { role: 'quit' },
@@ -258,4 +268,110 @@ ipcMain.handle('app:info', () => ({
   solas: SOLAS,
   tage: { standard: SOLA_TAGE, min: MIN_TAGE, max: MAX_TAGE },
   leereConfig: emptyConfig(),
+  importSchemata: schemaListe(),
+  exiftool: exif.vorhanden,
 }));
+
+// ---------------------------------------------------------------------------
+// Importfenster: Kamera / Kartenleser / SD-Karte direkt in die richtigen Ordner
+// kopieren. Eigenes Fenster mit Vergleich (FreeFileSync-Art) vor dem Kopieren.
+// ---------------------------------------------------------------------------
+
+/** @type {BrowserWindow|null} */
+let importFenster = null;
+// Kontext aus dem Hauptfenster (Konfiguration + gewählter Zielordner) und der
+// zuletzt berechnete Plan, damit „Kopieren" genau den verglichenen Stand umsetzt.
+let importKontext = { config: emptyConfig(), zielordner: '' };
+let letzterVergleich = null;
+
+const importMelder = () => (text) => {
+  const ziel = importFenster || fenster;
+  if (ziel) ziel.webContents.send('import:fortschritt', { text });
+};
+
+function oeffneImportFenster() {
+  if (importFenster) {
+    importFenster.focus();
+    return;
+  }
+  importFenster = new BrowserWindow({
+    width: 1040,
+    height: 800,
+    minWidth: 760,
+    minHeight: 560,
+    title: 'Fotos und Videos importieren',
+    backgroundColor: '#f6f5f0',
+    parent: fenster || undefined,
+    titleBarStyle: IST_MAC ? 'hiddenInset' : 'default',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  importFenster.loadFile(path.join(__dirname, '..', 'renderer', 'import.html'));
+  importFenster.on('closed', () => {
+    importFenster = null;
+    letzterVergleich = null;
+  });
+}
+
+ipcMain.handle('import:fensterOeffnen', (_e, kontext) => {
+  if (kontext && kontext.config) importKontext = { config: kontext.config, zielordner: kontext.zielordner || '' };
+  oeffneImportFenster();
+});
+
+ipcMain.handle('import:kontext', () => ({
+  config: importKontext.config,
+  zielordner: importKontext.zielordner,
+  schemata: schemaListe(),
+  methoden: VERGLEICH_METHODEN,
+  solas: SOLAS,
+  bereiche: BEREICHE,
+  exiftool: exif.vorhanden,
+  plattform: process.platform,
+}));
+
+ipcMain.handle('geraete:liste', () => listRemovable());
+
+ipcMain.handle('import:vergleichen', async (_e, { quelle, zielBasis, schema, ktx, config, methode }) => {
+  if (!quelle) return { ok: false, fehler: 'Bitte zuerst eine Quelle wählen.' };
+  try {
+    const r = await vergleicheImport({ quelle, zielBasis, schema, ktx, config, methode, melde: importMelder() });
+    letzterVergleich = { plan: r.plan, methode };
+    return {
+      ok: true,
+      gefunden: r.gefunden,
+      kategorien: r.kategorien,
+      quellen: r.quellen,
+      warnungen: r.warnungen,
+      jahr: r.jahr,
+      zielBekannt: r.zielBekannt,
+      uebersprungenDatum: r.uebersprungenDatum.slice(0, 40).map((u) => `${path.basename(u.von)} — ${u.grund}`),
+      eintraege: r.eintraege.slice(0, 300),
+    };
+  } catch (err) {
+    return { ok: false, fehler: String(err.message || err) };
+  }
+});
+
+ipcMain.handle('import:kopieren', async (_e, { zielBasis, verschieben, methode }) => {
+  if (!letzterVergleich || letzterVergleich.plan.length === 0) {
+    return { ok: false, fehler: 'Bitte zuerst vergleichen.' };
+  }
+  if (!zielBasis) return { ok: false, fehler: 'Kein Zielordner gewählt.' };
+  try {
+    const r = await runImport({
+      plan: letzterVergleich.plan,
+      zielBasis,
+      verschieben,
+      methode: methode || letzterVergleich.methode,
+      melde: importMelder(),
+    });
+    letzterVergleich = null;
+    return { ok: true, ...r };
+  } catch (err) {
+    return { ok: false, fehler: String(err.message || err) };
+  }
+});
