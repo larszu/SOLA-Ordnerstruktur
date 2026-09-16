@@ -26,10 +26,29 @@
   --akzent-hell: var(--eis);
   --warnung: #c8892b;
   --warnung-hell: #fbf0de;
+  --warnung-text: #8a5510; /* für Text: Amber selbst erreicht kein AA */
   --fehler: #b04a3f;
   --fehler-hell: #f7e7e4;
+  --fehler-text: #8f382e;
   --erfolg: #2f7d5c;
   --erfolg-hell: #e5f0ea;
+  --erfolg-text: #216046;
+
+  /* Spacing-Skala (4-px-Raster) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+
+  /* Fokus, Schatten, Übergänge */
+  --fokus: #1d5fbf;
+  --schatten: 0 1px 2px rgba(19, 32, 64, 0.06), 0 1px 3px rgba(19, 32, 64, 0.05);
+  --schatten-hover: 0 2px 6px rgba(19, 32, 64, 0.10), 0 3px 12px rgba(19, 32, 64, 0.08);
+  --tempo: 0.15s;
+
   --radius: 8px;
   --schrift: 'Public Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   --mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -37,6 +56,12 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* Ein Desktop-Fenster scrollt nie seitlich – breite Inhalte (z. B. die
+   Vorgabentabelle) bekommen ihre eigene, waagerechte Bildlaufleiste. */
+html {
+  overflow-x: hidden;
 }
 
 body {
@@ -821,4 +846,263 @@ fieldset {
 .kachel {
   background: #fff;
   border-color: var(--eis);
+}
+
+/* ========================================================================= *
+ *  Modernisierung & Barrierefreiheit (WCAG AA)                              *
+ *  Feinschliff für Abstände, Fokus, Kontrast und Bedienbarkeit.            *
+ * ========================================================================= */
+
+body {
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--eis);
+  color: var(--navy);
+}
+
+/* Sichtbarer, konsistenter Fokusring auf allem Bedienbaren – Grundlage der
+   Tastaturbedienung. Auf dem dunklen Kopf hell, sonst kräftiges Blau. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible,
+.geraet:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.kopf a:focus-visible,
+.kopf button:focus-visible {
+  outline-color: var(--eis);
+}
+
+/* Weiche Übergänge – nur, wenn die Person keine Reduktion wünscht. */
+@media (prefers-reduced-motion: no-preference) {
+  .knopf,
+  .geraet,
+  input,
+  select,
+  .meldung button,
+  .sola,
+  .kachel {
+    transition: background-color var(--tempo) ease, border-color var(--tempo) ease,
+      color var(--tempo) ease, box-shadow var(--tempo) ease, transform var(--tempo) ease;
+  }
+}
+
+/* --- Layout-Rhythmus ----------------------------------------------------- */
+
+main {
+  gap: var(--s-6);
+  padding: var(--s-6) var(--s-8) var(--s-8);
+}
+
+.karte {
+  padding: var(--s-5) var(--s-6) var(--s-6);
+  box-shadow: var(--schatten);
+}
+
+.karte h2 {
+  margin-bottom: var(--s-5);
+  font-size: 12px;
+  letter-spacing: 0.07em;
+  color: var(--schiefer);
+}
+
+/* --- Knöpfe: klare Hierarchie, große Ziele, spürbares Feedback ----------- */
+
+.knopf {
+  min-height: 40px;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  border-width: 1.5px;
+}
+
+.knopf:hover:not(:disabled) {
+  border-color: var(--navy);
+  background: var(--eis);
+}
+
+.knopf:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.knopf-primaer,
+.knopf-primaer:hover:not(:disabled) {
+  color: #fff;
+}
+
+.knopf-primaer {
+  background: var(--navy);
+  border-color: var(--navy);
+  box-shadow: var(--schatten);
+}
+
+.knopf-primaer:hover:not(:disabled) {
+  background: var(--deep);
+  border-color: var(--deep);
+}
+
+/* --- Formularfelder: gleiche Höhe, ruhiger Fokus ------------------------- */
+
+input[type='text'],
+input[type='date'],
+select {
+  min-height: 40px;
+  padding: 9px 11px;
+  border-width: 1.5px;
+}
+
+input[type='text']:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: var(--stahl);
+}
+
+.namen-liste input {
+  min-height: 32px;
+}
+
+/* Beschriftungen etwas kräftiger und mit Luft. */
+.feld > span,
+legend {
+  color: var(--schiefer);
+  letter-spacing: 0.02em;
+}
+
+/* --- Meldungen & Status: AA-taugliche Textfarben ------------------------- */
+
+.meldung {
+  border-width: 1.5px;
+  border-radius: var(--radius);
+  padding: 11px 14px;
+}
+
+.meldung-warnung {
+  color: var(--warnung-text);
+}
+
+.meldung-fehler {
+  color: var(--fehler-text);
+}
+
+.meldung-erfolg {
+  color: var(--erfolg-text);
+}
+
+.warn {
+  color: var(--warnung-text);
+}
+
+.fortschritt,
+[role='status'] {
+  min-height: 20px;
+}
+
+/* --- Kacheln & Statusabzeichen ------------------------------------------ */
+
+.kachel {
+  box-shadow: var(--schatten);
+  border-radius: var(--radius);
+}
+
+.kachel-neu .zahl {
+  color: var(--erfolg-text);
+}
+
+.kachel-anders .zahl {
+  color: var(--warnung-text);
+}
+
+.kat {
+  padding: 2px 10px;
+}
+
+.kat-neu {
+  color: var(--erfolg-text);
+}
+
+.kat-anders {
+  color: var(--warnung-text);
+}
+
+/* --- Gerätekarten: fühlbar anklickbar, klarer aktiver Zustand ----------- */
+
+.geraet {
+  min-height: 52px;
+  box-shadow: var(--schatten);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .geraet:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--schatten-hover);
+  }
+}
+
+.geraet.aktiv {
+  border-width: 2px;
+  box-shadow: var(--schatten);
+}
+
+/* --- Vergleichstabelle: Zeilen-Hover und Zebra für die Lesbarkeit ------- */
+
+.vorgaben-tabelle tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--papier) 55%, #fff);
+}
+
+.import-tabelle tbody tr:hover {
+  background: var(--eis);
+}
+
+.vorgaben-tabelle th {
+  color: var(--schiefer);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* --- Links: erkennbar und fokussierbar ---------------------------------- */
+
+.fuss a {
+  color: var(--navy);
+  text-underline-offset: 2px;
+}
+
+.fuss a:hover {
+  text-decoration-thickness: 2px;
+}
+
+
+/* Fokusring konsistent über die spezifischere Basisregel legen. */
+.knopf:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.kopf .knopf:focus-visible {
+  outline-color: var(--eis);
+}
+
+/* Kompakte Kontexte behalten ihre schlanke Höhe – die globale Feldhöhe von
+   40px gilt nur den Hauptformularfeldern, nicht Listen und Tabellenzellen. */
+.namen-liste input {
+  min-height: 34px;
+  padding: 6px 9px;
+}
+
+.meta-felder input {
+  min-height: 30px;
+  padding: 4px 8px;
+}
+
+.knopf-klein {
+  min-height: 30px;
+  padding: 5px 12px;
 }
