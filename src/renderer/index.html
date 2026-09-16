@@ -106,6 +106,53 @@
 
         <p class="hinweis mono" id="lrPfad"></p>
       </section>
+
+      <section class="karte">
+        <h2>5 · Fotos und Videos importieren</h2>
+        <p class="hinweis" id="importWerkzeug"></p>
+
+        <label class="feld feld-schmal">
+          <span>Zielschema</span>
+          <select id="importSchema"></select>
+        </label>
+        <p class="hinweis" id="importSchemaInfo"></p>
+
+        <div class="zeile zeile-umbruch">
+          <button type="button" id="btnImportQuelle" class="knopf">Quellordner (Karte) wählen …</button>
+          <code class="pfad" id="importQuelleAnzeige">Noch kein Quellordner gewählt</code>
+        </div>
+
+        <div class="zeile zeile-umbruch import-sola" id="importSolaFelder">
+          <label class="feld feld-schmal"><span>Sola</span><select id="importSola"></select></label>
+          <label class="feld feld-schmal"><span>Bereich</span><select id="importBereich"></select></label>
+          <label class="feld feld-schmal"><span>Person</span><select id="importPerson"></select></label>
+        </div>
+
+        <div class="zeile zeile-umbruch import-ziel" id="importZielFelder">
+          <span class="hinweis" id="importZielHinweis"></span>
+          <button type="button" id="btnImportZiel" class="knopf">Zielordner wählen …</button>
+          <code class="pfad" id="importZielAnzeige">Noch kein Zielordner gewählt</code>
+        </div>
+
+        <div class="zeile zeile-umbruch import-optionen">
+          <label class="wahl"><input type="checkbox" id="importUmbenennen" /> Nach Aufnahmezeit umbenennen</label>
+          <label class="wahl" id="importHandyWahl"><input type="checkbox" id="importHandy" /> in Unterordner „_Handy“</label>
+          <label class="wahl"><input type="checkbox" id="importVerschieben" /> Verschieben statt kopieren</label>
+        </div>
+
+        <div class="zeile zeile-umbruch">
+          <button type="button" id="btnImportVorschau" class="knopf knopf-still">Vorschau erstellen</button>
+          <button type="button" id="btnImportAusfuehren" class="knopf knopf-primaer" disabled>Importieren</button>
+          <span class="hinweis" id="importFortschritt"></span>
+        </div>
+
+        <div class="meldungen" id="importMeldungen"></div>
+        <div class="kacheln" id="importKacheln"></div>
+        <details class="vorschau" id="importVorschauBox">
+          <summary>Vorschau <span id="importVorschauAnzahl"></span></summary>
+          <pre id="importVorschau"></pre>
+        </details>
+      </section>
     </main>
 
     <footer class="fuss">

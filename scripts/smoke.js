@@ -292,6 +292,42 @@ app.whenReady().then(async () => {
     })()`);
     pruefe(nachEntfernen === 5, 'nach dem Entfernen bleiben die mitgelieferten übrig', String(nachEntfernen));
 
+    console.log('\n· Fotos importieren');
+    // Quelle mit datierten Dateinamen, damit der Import auch ohne ExifTool
+    // (auf dem CI-Runner ist keines installiert) das Datum bestimmen kann.
+    const importQuelle = path.join(arbeitsordner, 'karte');
+    fs.mkdirSync(path.join(importQuelle, 'DCIM'), { recursive: true });
+    fs.writeFileSync(path.join(importQuelle, '20260613_101010_a.jpg'), 'AAA'); // Tag 1
+    fs.writeFileSync(path.join(importQuelle, 'DCIM', '20260615_120000_b.jpg'), 'BBBB'); // Tag 3, rekursiv
+    fs.writeFileSync(path.join(importQuelle, '20260501_090000_c.jpg'), 'CC'); // außerhalb der Sola-Woche
+
+    const importErg = await imFenster(`(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const setSel = (id, val) => { const el = document.getElementById(id); el.value = val; el.dispatchEvent(new Event('change', { bubbles: true })); };
+      zustand.importQuelle = ${JSON.stringify(importQuelle)};
+      setSel('importSchema', 'sola');
+      await sleep(150);
+      setSel('importSola', 'teens'); await sleep(50);
+      setSel('importBereich', 'foto'); await sleep(50);
+      setSel('importPerson', 'Lars'); await sleep(50);
+      document.getElementById('btnImportVorschau').click();
+      await sleep(900);
+      const kannAusfuehren = !document.getElementById('btnImportAusfuehren').disabled;
+      const kacheln = document.getElementById('importKacheln').textContent;
+      document.getElementById('btnImportAusfuehren').click();
+      await sleep(1400);
+      return { kannAusfuehren, kacheln, fortschritt: document.getElementById('importFortschritt').textContent };
+    })()`);
+
+    pruefe(importErg.kannAusfuehren, 'nach der Vorschau lässt sich der Import auslösen', importErg.fortschritt);
+    const importRaw1 = path.join(ziel, 'Sola_2026', '01_Teens', '01_Foto', '1_Tag_13-06-2026', '05_Lars', '01_ImportRAW');
+    const importRaw3 = path.join(ziel, 'Sola_2026', '01_Teens', '01_Foto', '3_Tag_15-06-2026', '05_Lars', '01_ImportRAW');
+    pruefe(fs.existsSync(path.join(importRaw1, '20260613_101010_a.jpg')), 'das Tag-1-Foto landet im ImportRAW-Ordner');
+    pruefe(fs.existsSync(path.join(importRaw3, '20260615_120000_b.jpg')), 'das Datum trifft den Tag-3-Ordner (auch aus einem Unterordner)');
+    pruefe(fs.existsSync(path.join(importQuelle, '20260613_101010_a.jpg')), 'die Quelldatei bleibt erhalten (kopiert, nicht verschoben)');
+    pruefe(fs.existsSync(path.join(ziel, '_Import-Protokolle')), 'der Import schreibt ein Protokoll');
+    await screenshot(win, '06-import.png', 'main > .karte:nth-of-type(5)');
+
     console.log('\n· Layout');
     for (const [breite, hoehe, name] of [[1180, 900, null], [760, 900, null], [620, 900, '05-schmal.png']]) {
       win.setSize(breite, hoehe);

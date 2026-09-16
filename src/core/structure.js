@@ -192,6 +192,85 @@ function buildPlan(config) {
   return { ordner: [...ordner].sort(), jahr, warnungen };
 }
 
+/**
+ * Ermittelt für eine Person je Solatag den Zielordner, in den ihre Fotos bzw.
+ * Videos importiert werden. Nutzt dieselben Bausteine wie {@link buildPlan} –
+ * der Import landet damit garantiert in den Ordnern, die die App auch anlegt.
+ *
+ * Für Foto ist das der `01_ImportRAW`-Ordner der Person, für Video ihr Ordner
+ * unter `01_Rohvideos`.
+ *
+ * @param {Config} config
+ * @param {{solaKey: string, bereich: 'foto'|'video', person: string}} auswahl
+ * @returns {{jahr: string, sola: string, person: string|null,
+ *            ziele: Object<string, string>, warnungen: string[]}}
+ *          `ziele` bildet `dd-MM-yyyy` auf den relativen Zielordner ab.
+ */
+function importZielordner(config, auswahl) {
+  const cfg = normalizeConfig(config);
+  const warnungen = [];
+  const leer = { jahr: '', sola: '', person: null, ziele: {}, warnungen };
+
+  const sola = SOLAS.find((s) => s.key === auswahl.solaKey);
+  if (!sola) {
+    warnungen.push('Unbekanntes Sola gewählt.');
+    return leer;
+  }
+  leer.sola = sola.titel;
+  const a = cfg[auswahl.solaKey];
+
+  const auto = solaJahr(SOLAS.filter((s) => cfg[s.key].aktiv).map((s) => ({ label: s.label, start: cfg[s.key].start })));
+  const jahr = String(cfg.jahr || auto.jahr || '').trim();
+  if (!jahr) {
+    warnungen.push('Kein Solajahr ermittelbar – bitte Startdatum wählen oder das Jahr manuell angeben.');
+    return { ...leer, jahr: '' };
+  }
+
+  const bereich = BEREICHE.find((b) => b.key === auswahl.bereich);
+  const gewaehlt = BEREICHE.filter((b) => a.bereiche[b.key]);
+  const bereichIndex = gewaehlt.findIndex((b) => b.key === auswahl.bereich);
+  if (!bereich || (auswahl.bereich !== 'foto' && auswahl.bereich !== 'video')) {
+    warnungen.push('Import gibt es nur für die Bereiche Foto und Video.');
+    return { ...leer, jahr };
+  }
+  if (bereichIndex === -1) {
+    warnungen.push(`${sola.titel}: Bereich ${bereich.label} ist nicht angewählt – bitte oben aktivieren.`);
+    return { ...leer, jahr };
+  }
+  const bereichName = `${nr(bereichIndex + 1)}_${bereich.label}`;
+
+  const liste = (auswahl.bereich === 'foto' ? a.fotografen : a.videografen).filter(Boolean);
+  const personIndex = liste.indexOf(String(auswahl.person || '').trim());
+  if (personIndex === -1) {
+    warnungen.push(`${sola.titel}: „${auswahl.person}" steht nicht in der ${bereich.label}-Namensliste.`);
+    return { ...leer, jahr };
+  }
+  const personName = liste[personIndex];
+  // Foto-Personen setzen die Nummerierung hinter den festen Tagesordnern fort,
+  // Video-Personen zählen innerhalb von 01_Rohvideos ab 1.
+  const personNr = auswahl.bereich === 'foto' ? personIndex + 1 + FOTO_TAG_ORDNER(1).length : personIndex + 1;
+  const personOrdner = `${nr(personNr)}_${personName}`;
+
+  const tage = berechneWoche(a.start, a.tage);
+  if (tage.length === 0) {
+    warnungen.push(`${sola.titel}: kein gültiges Startdatum – Tage lassen sich nicht bestimmen.`);
+    return { ...leer, jahr, person: personName };
+  }
+
+  const wurzel = sanitizeSegment(`Sola_${jahr}`);
+  const seg = (...segmente) => [wurzel, ...segmente.map(sanitizeSegment)].filter(Boolean).join('/');
+
+  const ziele = {};
+  tage.forEach((datum, i) => {
+    const tagName = tagOrdner(i + 1, datum);
+    ziele[datum] = auswahl.bereich === 'foto'
+      ? seg(sola.ordner, bereichName, tagName, personOrdner, FOTO_UNTERORDNER[0])
+      : seg(sola.ordner, bereichName, tagName, VIDEO_TAG_ORDNER[0], personOrdner);
+  });
+
+  return { jahr, sola: sola.titel, person: personName, ziele, warnungen };
+}
+
 /** Füllt fehlende Felder auf und normalisiert die Namenslisten. */
 function normalizeConfig(config) {
   const quelle = config || {};
@@ -236,6 +315,7 @@ module.exports = {
   VIDEO_TAG_ORDNER,
   LR_KATALOGE,
   buildPlan,
+  importZielordner,
   normalizeConfig,
   emptyConfig,
 };

@@ -603,3 +603,65 @@ fieldset {
 .feld-tage input {
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Import (Abschnitt 5) ------------------------------------------------ */
+
+/* [hidden] muss auch die Flex-Zeilen des Imports sicher ausblenden. */
+[hidden] {
+  display: none !important;
+}
+
+.warn {
+  color: var(--warnung);
+  font-weight: 600;
+}
+
+.import-sola select,
+.import-optionen {
+  font-variant-numeric: tabular-nums;
+}
+
+.import-optionen {
+  gap: 18px;
+}
+
+.wahl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+
+.wahl input {
+  margin: 0;
+}
+
+/* Kacheln mit Kennzahlen der Vorschau. */
+.kacheln {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.kachel {
+  display: flex;
+  flex-direction: column;
+  min-width: 96px;
+  padding: 10px 14px;
+  background: var(--akzent-hell);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius);
+}
+
+.kachel .zahl {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--akzent);
+}
+
+.kachel .etikett {
+  font-size: 12px;
+  color: var(--gedaempft);
+}

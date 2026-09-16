@@ -6,6 +6,9 @@ const path = require('path');
 
 const { buildPlan, BEREICHE, SOLAS, emptyConfig } = require('../core/structure');
 const { createStructure } = require('../core/createStructure');
+const exif = require('../core/exif');
+const { scanImport, runImport } = require('../core/importRun');
+const { schemaListe } = require('../core/importPlan');
 const { installPresets, lightroomPfade } = require('../core/lightroom');
 const presetStore = require('../core/presetStore');
 const { SOLA_TAGE, MIN_TAGE, MAX_TAGE } = require('../core/dates');
@@ -258,4 +261,58 @@ ipcMain.handle('app:info', () => ({
   solas: SOLAS,
   tage: { standard: SOLA_TAGE, min: MIN_TAGE, max: MAX_TAGE },
   leereConfig: emptyConfig(),
+  importSchemata: schemaListe(),
+  exiftool: exif.vorhanden,
 }));
+
+// ---------------------------------------------------------------------------
+// Import von Fotos und Videos in ein wählbares Zielschema.
+// ---------------------------------------------------------------------------
+
+// Den zuletzt berechneten Plan zwischenspeichern, damit „Importieren" genau das
+// umsetzt, was die Vorschau zeigt – und nicht erneut die Karte einliest.
+let letzterImport = null;
+
+const importMelder = () => (text) => {
+  if (fenster) fenster.webContents.send('import:fortschritt', { text });
+};
+
+/** Kurze, für die Liste lesbare Beschreibung eines geplanten Vorgangs. */
+function beschreibeImport(s) {
+  return `${path.basename(s.von)}  →  ${s.zielRel}/${s.zielName}  (${s.quelle})`;
+}
+
+ipcMain.handle('import:scan', async (_e, { quelle, schema, ktx, config }) => {
+  if (!quelle) return { ok: false, fehler: 'Bitte zuerst einen Quellordner wählen.' };
+  try {
+    const ergebnis = await scanImport({ quelle, schema, ktx, config, melde: importMelder() });
+    letzterImport = { plan: ergebnis.plan, schema };
+    return {
+      ok: true,
+      gefunden: ergebnis.gefunden,
+      anzahl: ergebnis.plan.length,
+      uebersprungen: ergebnis.uebersprungen.length,
+      quellen: ergebnis.zusammenfassung.quellen,
+      warnungen: ergebnis.warnungen,
+      jahr: ergebnis.jahr,
+      vorschau: ergebnis.plan.slice(0, 200).map(beschreibeImport),
+      uebersprungenListe: ergebnis.uebersprungen.slice(0, 40).map((u) => `${path.basename(u.von)} — ${u.grund}`),
+    };
+  } catch (err) {
+    return { ok: false, fehler: String(err.message || err) };
+  }
+});
+
+ipcMain.handle('import:ausfuehren', async (_e, { zielBasis, verschieben }) => {
+  if (!letzterImport || letzterImport.plan.length === 0) {
+    return { ok: false, fehler: 'Bitte zuerst eine Vorschau erstellen.' };
+  }
+  if (!zielBasis) return { ok: false, fehler: 'Kein Zielordner gewählt.' };
+  try {
+    const ergebnis = await runImport({ plan: letzterImport.plan, zielBasis, verschieben, melde: importMelder() });
+    letzterImport = null;
+    return { ok: true, ...ergebnis };
+  } catch (err) {
+    return { ok: false, fehler: String(err.message || err) };
+  }
+});

@@ -15,6 +15,10 @@ const zustand = {
   letzterPlan: { ordner: [], jahr: '', warnungen: [] },
   vorgaben: [],
   lrPfade: {},
+  importSchemata: [],
+  importQuelle: '',
+  importZiel: '',
+  importBereit: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -29,12 +33,15 @@ async function init() {
   zustand.solas = info.solas;
   zustand.tageGrenzen = info.tage;
   zustand.config = info.leereConfig;
+  zustand.importSchemata = info.importSchemata || [];
+  zustand.exiftool = info.exiftool;
   $('version').textContent = `v${info.version}`;
   $('presetJahr').value = String(new Date().getFullYear()).slice(-2);
 
   baueSolas();
   verdrahteKopf();
   verdrahtePresets();
+  initImport();
   await zeigeLightroomPfad();
   zeigeVorgaben(await sola.presetsListe());
   aktualisiere();
@@ -219,6 +226,7 @@ async function aktualisiere(optionen = {}) {
   const jahr = String(plan.jahr || zustand.config.jahr || '');
   if (jahr.length === 4 && document.activeElement !== $('presetJahr')) $('presetJahr').value = jahr.slice(-2);
   pruefePresetKnopf();
+  aktualisiereImportFelder();
 }
 
 /** Zeichnet die flache Pfadliste als eingerückten Baum. */
@@ -509,6 +517,268 @@ function baueVorgabenZeile(vorgabe) {
   }
 
   return zeile;
+}
+
+// ---------------------------------------------------------------------------
+// Import von Fotos und Videos
+// ---------------------------------------------------------------------------
+
+const BEREICH_LABEL = { foto: 'Foto', video: 'Video' };
+
+/** Eine Kachel mit Kennzahl und Beschriftung für die Import-Vorschau. */
+function kachel(zahl, etikett) {
+  const n = Number(zahl || 0).toLocaleString('de-DE');
+  return `<div class="kachel"><span class="zahl">${n}</span><span class="etikett">${etikett}</span></div>`;
+}
+
+function aktuellesImportSchema() {
+  const key = $('importSchema').value;
+  return zustand.importSchemata.find((s) => s.key === key) || zustand.importSchemata[0] || { key: '', braucht: [] };
+}
+
+function initImport() {
+  const auswahl = $('importSchema');
+  auswahl.textContent = '';
+  for (const schema of zustand.importSchemata) {
+    const option = document.createElement('option');
+    option.value = schema.key;
+    option.textContent = schema.label;
+    auswahl.appendChild(option);
+  }
+
+  $('importWerkzeug').innerHTML = zustand.exiftool
+    ? 'ExifTool gefunden ✓ — Aufnahmedatum kommt aus den Metadaten.'
+    : '<span class="warn">ExifTool nicht gefunden</span> — das Datum kommt aus Dateiname oder Änderungsdatum. Für zuverlässige Aufnahmedaten ExifTool installieren (exiftool.org).';
+
+  auswahl.addEventListener('change', () => {
+    setzeImportBereit(false);
+    aktualisiereImportFelder();
+  });
+
+  $('btnImportQuelle').addEventListener('click', async () => {
+    const pfad = await sola.ordnerWaehlen('Quellordner (Speicherkarte) wählen');
+    if (pfad) {
+      zustand.importQuelle = pfad;
+      setzeImportBereit(false);
+      aktualisiereImportFelder();
+    }
+  });
+
+  $('btnImportZiel').addEventListener('click', async () => {
+    const pfad = await sola.ordnerWaehlen('Zielordner für den Import wählen');
+    if (pfad) {
+      zustand.importZiel = pfad;
+      setzeImportBereit(false);
+      aktualisiereImportFelder();
+    }
+  });
+
+  for (const id of ['importSola', 'importBereich', 'importPerson', 'importUmbenennen', 'importHandy', 'importVerschieben']) {
+    $(id).addEventListener('change', () => {
+      if (id !== 'importVerschieben') setzeImportBereit(false);
+      aktualisiereImportFelder();
+    });
+  }
+
+  $('btnImportVorschau').addEventListener('click', importVorschau);
+  $('btnImportAusfuehren').addEventListener('click', importAusfuehren);
+
+  sola.aufImportFortschritt((d) => { $('importFortschritt').textContent = d.text; });
+
+  aktualisiereImportFelder();
+}
+
+/** Füllt Sola-/Bereich-/Personenauswahl und schaltet die passenden Felder frei. */
+function aktualisiereImportFelder() {
+  if (!zustand.importSchemata.length) return;
+  const schema = aktuellesImportSchema();
+  const brauchtSola = schema.braucht.includes('sola');
+
+  $('importSchemaInfo').textContent = schema.beschreibung || '';
+  $('importSolaFelder').hidden = !brauchtSola;
+  $('importHandyWahl').hidden = !schema.braucht.includes('handy');
+  $('importQuelleAnzeige').textContent = zustand.importQuelle || 'Noch kein Quellordner gewählt';
+
+  if (brauchtSola) {
+    fuelleSolaFelder();
+    // Ziel ist der Zielordner aus Schritt 1.
+    $('importZielHinweis').hidden = false;
+    $('importZielHinweis').textContent = zustand.pfad
+      ? `Ziel: ${zustand.pfad} (Zielordner aus Schritt 1)`
+      : 'Ziel: bitte oben in Schritt 1 einen Zielordner wählen.';
+    $('btnImportZiel').hidden = true;
+    $('importZielAnzeige').hidden = true;
+  } else {
+    $('importZielHinweis').hidden = true;
+    $('btnImportZiel').hidden = false;
+    $('importZielAnzeige').hidden = false;
+    $('importZielAnzeige').textContent = zustand.importZiel || 'Noch kein Zielordner gewählt';
+  }
+
+  $('btnImportVorschau').disabled = !kannImportVorschau();
+}
+
+/** Baut Sola-, Bereichs- und Personenauswahl aus der aktuellen Konfiguration. */
+function fuelleSolaFelder() {
+  const solaSel = $('importSola');
+  const aktive = zustand.solas.filter((s) => zustand.config[s.key].aktiv);
+  fuelleSelect(solaSel, aktive.map((s) => ({ value: s.key, text: s.titel })), 'Kein Sola aktiv');
+
+  const solaKey = solaSel.value;
+  const daten = solaKey ? zustand.config[solaKey] : null;
+
+  const bereichSel = $('importBereich');
+  const bereiche = daten
+    ? ['foto', 'video'].filter((b) => daten.bereiche[b]).map((b) => ({ value: b, text: BEREICH_LABEL[b] }))
+    : [];
+  fuelleSelect(bereichSel, bereiche, 'Kein Foto/Video-Bereich');
+
+  const bereich = bereichSel.value;
+  const rolle = bereich === 'video' ? 'videografen' : 'fotografen';
+  const namen = daten && bereich ? daten[rolle].filter(Boolean).map((n) => ({ value: n, text: n })) : [];
+  fuelleSelect($('importPerson'), namen, 'Keine Namen eingetragen');
+}
+
+/** Ersetzt die Optionen eines <select>, behält die bisherige Wahl wenn möglich. */
+function fuelleSelect(select, optionen, leerText) {
+  const vorher = select.value;
+  select.textContent = '';
+  if (optionen.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = leerText;
+    opt.disabled = true;
+    select.appendChild(opt);
+    select.value = '';
+    select.disabled = true;
+    return;
+  }
+  select.disabled = false;
+  for (const o of optionen) {
+    const opt = document.createElement('option');
+    opt.value = o.value;
+    opt.textContent = o.text;
+    select.appendChild(opt);
+  }
+  select.value = optionen.some((o) => o.value === vorher) ? vorher : optionen[0].value;
+}
+
+function importZielBasis() {
+  return aktuellesImportSchema().braucht.includes('sola') ? zustand.pfad : zustand.importZiel;
+}
+
+function kannImportVorschau() {
+  if (!zustand.importQuelle) return false;
+  const schema = aktuellesImportSchema();
+  if (schema.braucht.includes('sola')) {
+    return Boolean($('importSola').value && $('importBereich').value && $('importPerson').value);
+  }
+  return true;
+}
+
+function importKtx() {
+  const schema = aktuellesImportSchema();
+  if (schema.braucht.includes('sola')) {
+    return {
+      solaKey: $('importSola').value,
+      bereich: $('importBereich').value,
+      person: $('importPerson').value,
+      umbenennen: $('importUmbenennen').checked,
+    };
+  }
+  return {
+    umbenennen: $('importUmbenennen').checked,
+    unterordner: $('importHandy').checked ? '_Handy' : '',
+  };
+}
+
+function setzeImportBereit(bereit) {
+  zustand.importBereit = bereit;
+  $('btnImportAusfuehren').disabled = !bereit || !importZielBasis();
+}
+
+async function importVorschau() {
+  if (!kannImportVorschau()) return;
+  setzeImportBereit(false);
+  $('importKacheln').innerHTML = '';
+  $('importVorschau').textContent = '';
+  $('importVorschauAnzahl').textContent = '';
+  $('importFortschritt').textContent = 'Lese Quellordner …';
+  $('btnImportVorschau').disabled = true;
+
+  const antwort = await sola.importScan({
+    quelle: zustand.importQuelle,
+    schema: aktuellesImportSchema().key,
+    ktx: importKtx(),
+    config: zustand.config,
+  });
+
+  $('btnImportVorschau').disabled = !kannImportVorschau();
+  if (!antwort.ok) {
+    $('importFortschritt').textContent = '';
+    zeigeMeldungen('importMeldungen', [{ art: 'fehler', text: antwort.fehler }]);
+    return;
+  }
+
+  const meldungen = (antwort.warnungen || []).map((text) => ({ art: 'warnung', text }));
+  zeigeMeldungen('importMeldungen', meldungen);
+
+  const q = antwort.quellen || { exif: 0, name: 0, mtime: 0 };
+  $('importKacheln').innerHTML =
+    kachel(antwort.anzahl, 'zu importieren') +
+    kachel(antwort.uebersprungen, 'übersprungen') +
+    kachel(q.exif, 'Datum aus EXIF') +
+    kachel(q.name, 'aus Name') +
+    kachel(q.mtime, 'aus Änderungsdatum');
+
+  const zeilen = [...antwort.vorschau];
+  if (antwort.anzahl > antwort.vorschau.length) zeilen.push(`… und ${antwort.anzahl - antwort.vorschau.length} weitere`);
+  if (antwort.uebersprungenListe && antwort.uebersprungenListe.length) {
+    zeilen.push('', 'Übersprungen:', ...antwort.uebersprungenListe.map((z) => `  ${z}`));
+  }
+  $('importVorschau').textContent = zeilen.join('\n');
+  $('importVorschauAnzahl').textContent = `(${antwort.gefunden} Dateien gefunden)`;
+
+  const zielBasis = importZielBasis();
+  if (antwort.anzahl === 0) {
+    $('importFortschritt').textContent = 'Nichts zu importieren.';
+  } else if (!zielBasis) {
+    $('importFortschritt').textContent = 'Bitte noch einen Zielordner wählen.';
+  } else {
+    setzeImportBereit(true);
+    $('importFortschritt').textContent = 'Vorschau fertig. Prüfen, dann importieren.';
+  }
+}
+
+async function importAusfuehren() {
+  const zielBasis = importZielBasis();
+  if (!zustand.importBereit || !zielBasis) return;
+  $('btnImportAusfuehren').disabled = true;
+  $('btnImportVorschau').disabled = true;
+  $('importFortschritt').textContent = 'Import läuft …';
+
+  const antwort = await sola.importAusfuehren({ zielBasis, verschieben: $('importVerschieben').checked });
+
+  $('btnImportVorschau').disabled = !kannImportVorschau();
+  zustand.importBereit = false;
+  if (!antwort.ok) {
+    $('importFortschritt').textContent = '';
+    zeigeMeldungen('importMeldungen', [{ art: 'fehler', text: antwort.fehler }]);
+    return;
+  }
+
+  const meldungen = antwort.fehler.map((f) => ({ art: 'fehler', text: `${f.von || ''}: ${f.grund}` }));
+  meldungen.unshift({
+    art: antwort.fehler.length ? 'warnung' : 'erfolg',
+    text:
+      `${antwort.erledigt} Dateien ${antwort.modus}` +
+      (antwort.uebersprungen ? `, ${antwort.uebersprungen} schon vorhanden` : '') + '.',
+    knopf: antwort.protokoll
+      ? { text: 'Zielordner zeigen', aktion: () => sola.ordnerOeffnen(zielBasis) }
+      : undefined,
+  });
+  zeigeMeldungen('importMeldungen', meldungen);
+  $('importFortschritt').textContent = `Fertig — Protokoll: ${antwort.protokoll}`;
 }
 
 init();
